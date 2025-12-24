@@ -9,6 +9,7 @@ import LoginAndAuthentication from './pages/login-and-authentication';
 import CreatorDatabaseManagement from './pages/creator-database-management';
 import CreatorProfileDetails from './pages/creator-profile-details';
 import CampaignManagementCenter from './pages/campaign-management-center';
+import BrandContactManagement from './pages/brand-contact-management';
 
 const Routes = () => {
   return (
@@ -18,8 +19,9 @@ const Routes = () => {
       <RouterRoutes>
         {/* Define your route here */}
         <Route path="/" element={<LoginAndAuthentication />} />
-        <Route path="/payment-processing-center" element={<PaymentProcessingCenter />} />
         <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+        <Route path="/brand-contact-management" element={<BrandContactManagement />} />
+        <Route path="/payment-processing-center" element={<PaymentProcessingCenter />} />
         <Route path="/login-and-authentication" element={<LoginAndAuthentication />} />
         <Route path="/creator-database-management" element={<CreatorDatabaseManagement />} />
         <Route path="/creator-profile-details" element={<CreatorProfileDetails />} />

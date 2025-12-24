@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
+import { Building2 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const navigate = useNavigate();
@@ -35,6 +36,11 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
       icon: 'CreditCard',
       badge: 5,
       tooltip: 'Payment Processing - Pending payments and transactions'
+    },
+    {
+      path: '/brand-contact-management',
+      label: 'Brand & Contact Management',
+      icon: Building2
     }
   ];
 
