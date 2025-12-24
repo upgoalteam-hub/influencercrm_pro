@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../../components/AppIcon';
 import BrandHeader from './components/BrandHeader';
 import LoginForm from './components/LoginForm';
@@ -9,6 +10,7 @@ import SessionWarningModal from './components/SessionWarningModal';
 
 const LoginAndAuthentication = () => {
   const navigate = useNavigate();
+  const { signIn, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showSessionWarning, setShowSessionWarning] = useState(false);
@@ -16,26 +18,12 @@ const LoginAndAuthentication = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTimer, setLockoutTimer] = useState(0);
 
-  const mockUsers = [
-    {
-      email: 'admin@influencercrm.com',
-      password: 'Admin@123',
-      role: 'Super Admin',
-      name: 'John Anderson'
-    },
-    {
-      email: 'manager@influencercrm.com',
-      password: 'Manager@123',
-      role: 'Manager',
-      name: 'Sarah Williams'
-    },
-    {
-      email: 'coordinator@marketing.influencercrm.com',
-      password: 'Coord@123',
-      role: 'Manager',
-      name: 'Michael Rodriguez'
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/executive-dashboard');
     }
-  ];
+  }, [user, navigate]);
 
   useEffect(() => {
     if (isLocked && lockoutTimer > 0) {
@@ -63,29 +51,11 @@ const LoginAndAuthentication = () => {
     setIsLoading(true);
     setError(null);
 
-    setTimeout(() => {
-      const user = mockUsers?.find(
-        u => u?.email === formData?.email && u?.password === formData?.password
-      );
+    try {
+      // Use actual Supabase authentication
+      const { data, error: signInError } = await signIn(formData?.email, formData?.password);
 
-      if (user) {
-        localStorage.setItem('userRole', user?.role);
-        localStorage.setItem('userName', user?.name);
-        localStorage.setItem('userEmail', user?.email);
-        localStorage.setItem('loginTime', new Date()?.toISOString());
-        
-        if (formData?.rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
-        }
-
-        setFailedAttempts(0);
-        
-        if (user?.role === 'Super Admin') {
-          navigate('/executive-dashboard');
-        } else {
-          navigate('/creator-database-management');
-        }
-      } else {
+      if (signInError) {
         const newFailedAttempts = failedAttempts + 1;
         setFailedAttempts(newFailedAttempts);
 
@@ -94,12 +64,24 @@ const LoginAndAuthentication = () => {
           setLockoutTimer(300);
           setError('Too many failed attempts. Account locked for 5 minutes.');
         } else {
-          setError(`Invalid email or password. ${3 - newFailedAttempts} attempts remaining before account lockout.`);
+          setError(`${signInError?.message || 'Invalid email or password'}. ${3 - newFailedAttempts} attempts remaining before account lockout.`);
         }
+      } else {
+        // Store user info
+        if (formData?.rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
+        }
+        
+        setFailedAttempts(0);
+        
+        // Navigate to dashboard - AuthContext will handle session
+        navigate('/executive-dashboard');
       }
-
+    } catch (err) {
+      setError(err?.message || 'An unexpected error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleExtendSession = () => {
@@ -196,14 +178,14 @@ const LoginAndAuthentication = () => {
                     <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-foreground">Super Admin:</p>
-                      <p>admin@influencercrm.com / Admin@123</p>
+                      <p>admin@crm.com / Admin@123456</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-foreground">Manager:</p>
-                      <p>manager@influencercrm.com / Manager@123</p>
+                      <p>manager@crm.com / Manager@123456</p>
                     </div>
                   </div>
                 </div>
