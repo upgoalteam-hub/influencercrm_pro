@@ -46,20 +46,20 @@ export default function CreatorDatabaseManagement() {
       setError(null);
       const data = await creatorService?.getAll();
       
-      // Transform data to use exact database columns
+      // Use exact database column names (no transformation)
       const transformedData = data?.map(creator => ({
         id: creator?.id,
-        srNo: creator?.srNo || 'N/A',
+        sr_no: creator?.sr_no || 'N/A',
         name: creator?.name || 'N/A',
-        instagramLink: creator?.instagramLink || 'N/A',
-        followersTier: creator?.followersTier || 'N/A',
+        instagram_link: creator?.instagram_link || 'N/A',
+        followers_tier: creator?.followers_tier || 'N/A',
         state: creator?.state || 'N/A',
         city: creator?.city || 'N/A',
         whatsapp: creator?.whatsapp || 'N/A',
         email: creator?.email || 'N/A',
         gender: creator?.gender || 'N/A',
         username: creator?.username || 'N/A',
-        sheetSource: creator?.sheetSource || 'N/A'
+        sheet_source: creator?.sheet_source || 'N/A'
       }));
 
       setAllCreators(transformedData);
@@ -125,7 +125,7 @@ export default function CreatorDatabaseManagement() {
           } else if (key === 'state') {
             return values?.some((v) => creator?.state?.toLowerCase()?.includes(v?.toLowerCase()));
           } else if (key === 'followers') {
-            return values?.some((tier) => creator?.followersTier?.toLowerCase()?.includes(tier?.toLowerCase()));
+            return values?.some((tier) => creator?.followers_tier?.toLowerCase()?.includes(tier?.toLowerCase()));
           }
           return true;
         });

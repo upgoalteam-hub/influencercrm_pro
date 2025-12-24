@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
-
 import Button from '../../../components/ui/Button';
 
 const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole }) => {
@@ -101,17 +100,17 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 aria-label="Select all creators"
               />
             </th>
-            <SortableHeader column="srNo" label="Sr No" />
-            <SortableHeader column="name" label="Name" />
-            <SortableHeader column="instagramLink" label="Instagram Link" />
-            <SortableHeader column="followersTier" label="Followers Tier" />
-            <SortableHeader column="state" label="State" />
-            <SortableHeader column="city" label="City" />
-            <SortableHeader column="whatsapp" label="WhatsApp" />
-            <SortableHeader column="email" label="Email" />
-            <SortableHeader column="gender" label="Gender" />
-            <SortableHeader column="username" label="Username" />
-            <SortableHeader column="sheetSource" label="Sheet Source" />
+            <SortableHeader column="sr_no" label="sr_no" />
+            <SortableHeader column="name" label="name" />
+            <SortableHeader column="instagram_link" label="instagram_link" />
+            <SortableHeader column="followers_tier" label="followers_tier" />
+            <SortableHeader column="state" label="state" />
+            <SortableHeader column="city" label="city" />
+            <SortableHeader column="whatsapp" label="whatsapp" />
+            <SortableHeader column="email" label="email" />
+            <SortableHeader column="gender" label="gender" />
+            <SortableHeader column="username" label="username" />
+            <SortableHeader column="sheet_source" label="sheet_source" />
             <th className="px-4 py-3 text-left">
               <span className="text-xs font-medium text-muted-foreground">Actions</span>
             </th>
@@ -133,7 +132,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 />
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.srNo}</div>
+                <div className="text-sm text-foreground">{creator?.sr_no}</div>
               </td>
               <td className="px-4 py-3">
                 <div className="text-sm font-medium text-foreground truncate max-w-[200px]">
@@ -141,14 +140,14 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 </div>
               </td>
               <td className="px-4 py-3">
-                {creator?.instagramLink !== 'N/A' ? (
+                {creator?.instagram_link !== 'N/A' ? (
                   <a
-                    href={creator?.instagramLink}
+                    href={creator?.instagram_link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-primary hover:underline flex items-center gap-1 truncate max-w-[200px]"
                   >
-                    {creator?.instagramLink}
+                    {creator?.instagram_link}
                     <Icon name="ExternalLink" size={12} />
                   </a>
                 ) : (
@@ -156,7 +155,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 )}
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.followersTier}</div>
+                <div className="text-sm text-foreground">{creator?.followers_tier}</div>
               </td>
               <td className="px-4 py-3">
                 <div className="text-sm text-foreground">{creator?.state}</div>
@@ -179,7 +178,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 <div className="text-sm text-foreground">@{creator?.username}</div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-muted-foreground">{creator?.sheetSource}</div>
+                <div className="text-sm text-muted-foreground">{creator?.sheet_source}</div>
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">

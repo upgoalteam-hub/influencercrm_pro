@@ -2,12 +2,12 @@ import { supabase } from '../lib/supabase';
 
 /**
  * Creator Service - Handles all creator-related database operations
- * Converts between snake_case (database) and camelCase (React)
+ * Returns data with EXACT database column names (snake_case)
  */
 export const creatorService = {
   /**
    * Fetch all creators from database
-   * @returns {Promise<Array>} Array of creator objects in camelCase
+   * @returns {Promise<Array>} Array of creator objects with exact database column names
    */
   async getAll() {
     try {
@@ -15,22 +15,8 @@ export const creatorService = {
 
       if (error) throw error;
 
-      // Convert snake_case to camelCase for React
-      return (data || [])?.map(creator => ({
-        id: creator?.id,
-        name: creator?.name,
-        email: creator?.email,
-        username: creator?.username,
-        instagramLink: creator?.instagram_link,
-        whatsapp: creator?.whatsapp,
-        city: creator?.city,
-        state: creator?.state,
-        gender: creator?.gender,
-        followersTier: creator?.followers_tier,
-        sheetSource: creator?.sheet_source,
-        srNo: creator?.sr_no,
-        createdAt: creator?.created_at
-      }));
+      // Return data with exact database column names (no conversion)
+      return data || [];
     } catch (error) {
       console.error('Error fetching creators:', error);
       throw error;
@@ -48,21 +34,7 @@ export const creatorService = {
 
       if (error) throw error;
 
-      return (data || [])?.map(creator => ({
-        id: creator?.id,
-        name: creator?.name,
-        email: creator?.email,
-        username: creator?.username,
-        instagramLink: creator?.instagram_link,
-        whatsapp: creator?.whatsapp,
-        city: creator?.city,
-        state: creator?.state,
-        gender: creator?.gender,
-        followersTier: creator?.followers_tier,
-        sheetSource: creator?.sheet_source,
-        srNo: creator?.sr_no,
-        createdAt: creator?.created_at
-      }));
+      return data || [];
     } catch (error) {
       console.error('Error searching creators:', error);
       throw error;
@@ -71,7 +43,7 @@ export const creatorService = {
 
   /**
    * Filter creators by various criteria
-   * @param {Object} filters - Filter criteria
+   * @param {Object} filters - Filter criteria (using exact database column names)
    * @returns {Promise<Array>} Filtered creators
    */
   async filter(filters = {}) {
@@ -86,33 +58,19 @@ export const creatorService = {
         query = query?.in('state', filters?.state);
       }
 
-      if (filters?.followersTier && filters?.followersTier?.length > 0) {
-        query = query?.in('followers_tier', filters?.followersTier);
+      if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
+        query = query?.in('followers_tier', filters?.followers_tier);
       }
 
-      if (filters?.sheetSource && filters?.sheetSource?.length > 0) {
-        query = query?.in('sheet_source', filters?.sheetSource);
+      if (filters?.sheet_source && filters?.sheet_source?.length > 0) {
+        query = query?.in('sheet_source', filters?.sheet_source);
       }
 
       const { data, error } = await query?.order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      return (data || [])?.map(creator => ({
-        id: creator?.id,
-        name: creator?.name,
-        email: creator?.email,
-        username: creator?.username,
-        instagramLink: creator?.instagram_link,
-        whatsapp: creator?.whatsapp,
-        city: creator?.city,
-        state: creator?.state,
-        gender: creator?.gender,
-        followersTier: creator?.followers_tier,
-        sheetSource: creator?.sheet_source,
-        srNo: creator?.sr_no,
-        createdAt: creator?.created_at
-      }));
+      return data || [];
     } catch (error) {
       console.error('Error filtering creators:', error);
       throw error;
@@ -122,7 +80,7 @@ export const creatorService = {
   /**
    * Get a single creator by ID
    * @param {string} id - Creator ID
-   * @returns {Promise<Object>} Creator object
+   * @returns {Promise<Object>} Creator object with exact database column names
    */
   async getById(id) {
     try {
@@ -130,21 +88,7 @@ export const creatorService = {
 
       if (error) throw error;
 
-      return {
-        id: data?.id,
-        name: data?.name,
-        email: data?.email,
-        username: data?.username,
-        instagramLink: data?.instagram_link,
-        whatsapp: data?.whatsapp,
-        city: data?.city,
-        state: data?.state,
-        gender: data?.gender,
-        followersTier: data?.followers_tier,
-        sheetSource: data?.sheet_source,
-        srNo: data?.sr_no,
-        createdAt: data?.created_at
-      };
+      return data;
     } catch (error) {
       console.error('Error fetching creator:', error);
       throw error;
