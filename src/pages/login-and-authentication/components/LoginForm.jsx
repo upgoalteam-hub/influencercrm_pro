@@ -33,7 +33,7 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
 
   const validatePassword = (password) => {
     if (password?.length < 8) {
-      return 'Password must be at least 8 characters long';
+      return 'Password must be at least 8 characters long, and one uppercase.';
     }
     return null;
   };
