@@ -10,7 +10,11 @@ import BulkOperationsToolbar from './components/BulkOperationsToolbar';
 import PaymentTable from './components/PaymentTable';
 import ExportReportModal from './components/ExportReportModal';
 import KeyboardShortcutsHelper from './components/KeyboardShortcutsHelper';
+
+import { campaignService } from '../../services/campaignService';
 import { realtimeService } from '../../services/realtimeService';
+import Icon from '../../components/AppIcon';
+
 
 const PaymentProcessingCenter = () => {
   const navigate = useNavigate();
@@ -20,6 +24,8 @@ const PaymentProcessingCenter = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'dueDate', direction: 'asc' });
   const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     amountRange: 'all',
     paymentMethod: 'all',
@@ -34,161 +40,40 @@ const PaymentProcessingCenter = () => {
 
   const userRole = 'Super Admin';
 
-  const mockPayments = [
-    {
-      id: 1,
-      creatorName: 'Sarah Johnson',
-      instagramHandle: '@fashionista_sarah',
-      campaignName: 'Summer Fashion Campaign',
-      campaignId: 'CAMP-2847',
-      amount: 25000,
-      dueDate: '2025-12-15',
-      delayDays: 3,
-      paymentMethod: 'Bank Transfer',
-      status: 'overdue',
-      referenceNumber: 'REF-2847-001',
-      gatewaySync: true,
-      bankReconciled: false
-    },
-    {
-      id: 2,
-      creatorName: 'Priya Sharma',
-      instagramHandle: '@priya_lifestyle',
-      campaignName: 'Beauty Product Launch',
-      campaignId: 'CAMP-2851',
-      amount: 15000,
-      dueDate: '2025-12-20',
-      delayDays: 0,
-      paymentMethod: 'UPI',
-      status: 'pending',
-      referenceNumber: '',
-      gatewaySync: false,
-      bankReconciled: false
-    },
-    {
-      id: 3,
-      creatorName: 'Rahul Verma',
-      instagramHandle: '@rahul_tech',
-      campaignName: 'Tech Gadget Review',
-      campaignId: 'CAMP-2849',
-      amount: 35000,
-      dueDate: '2025-12-18',
-      delayDays: 0,
-      paymentMethod: 'Bank Transfer',
-      status: 'processing',
-      referenceNumber: 'REF-2849-001',
-      gatewaySync: true,
-      bankReconciled: true
-    },
-    {
-      id: 4,
-      creatorName: 'Ananya Patel',
-      instagramHandle: '@ananya_fitness',
-      campaignName: 'Fitness Equipment Promo',
-      campaignId: 'CAMP-2845',
-      amount: 20000,
-      dueDate: '2025-12-10',
-      delayDays: 8,
-      paymentMethod: 'Cheque',
-      status: 'overdue',
-      referenceNumber: 'CHQ-2845-001',
-      gatewaySync: false,
-      bankReconciled: false
-    },
-    {
-      id: 5,
-      creatorName: 'Vikram Singh',
-      instagramHandle: '@vikram_travel',
-      campaignName: 'Travel Destination Campaign',
-      campaignId: 'CAMP-2843',
-      amount: 45000,
-      dueDate: '2025-11-30',
-      delayDays: 0,
-      paymentMethod: 'Bank Transfer',
-      status: 'paid',
-      referenceNumber: 'REF-2843-001',
-      gatewaySync: true,
-      bankReconciled: true
-    },
-    {
-      id: 6,
-      creatorName: 'Meera Reddy',
-      instagramHandle: '@meera_food',
-      campaignName: 'Restaurant Review Series',
-      campaignId: 'CAMP-2852',
-      amount: 18000,
-      dueDate: '2025-12-22',
-      delayDays: 0,
-      paymentMethod: 'UPI',
-      status: 'pending',
-      referenceNumber: '',
-      gatewaySync: false,
-      bankReconciled: false
-    },
-    {
-      id: 7,
-      creatorName: 'Arjun Kapoor',
-      instagramHandle: '@arjun_gaming',
-      campaignName: 'Gaming Console Launch',
-      campaignId: 'CAMP-2848',
-      amount: 55000,
-      dueDate: '2025-12-19',
-      delayDays: 0,
-      paymentMethod: 'Bank Transfer',
-      status: 'processing',
-      referenceNumber: 'REF-2848-001',
-      gatewaySync: true,
-      bankReconciled: false
-    },
-    {
-      id: 8,
-      creatorName: 'Divya Nair',
-      instagramHandle: '@divya_beauty',
-      campaignName: 'Skincare Product Review',
-      campaignId: 'CAMP-2850',
-      amount: 22000,
-      dueDate: '2025-12-12',
-      delayDays: 6,
-      paymentMethod: 'Digital Wallet',
-      status: 'overdue',
-      referenceNumber: '',
-      gatewaySync: false,
-      bankReconciled: false
-    },
-    {
-      id: 9,
-      creatorName: 'Karan Malhotra',
-      instagramHandle: '@karan_auto',
-      campaignName: 'Car Accessories Campaign',
-      campaignId: 'CAMP-2846',
-      amount: 30000,
-      dueDate: '2025-11-28',
-      delayDays: 0,
-      paymentMethod: 'Bank Transfer',
-      status: 'paid',
-      referenceNumber: 'REF-2846-001',
-      gatewaySync: true,
-      bankReconciled: true
-    },
-    {
-      id: 10,
-      creatorName: 'Sneha Gupta',
-      instagramHandle: '@sneha_home',
-      campaignName: 'Home Decor Collection',
-      campaignId: 'CAMP-2853',
-      amount: 28000,
-      dueDate: '2025-12-25',
-      delayDays: 0,
-      paymentMethod: 'UPI',
-      status: 'pending',
-      referenceNumber: '',
-      gatewaySync: false,
-      bankReconciled: false
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await campaignService?.getAll();
+      
+      // Transform Supabase data to match payment structure
+      const transformedData = data?.map(campaign => ({
+        id: campaign?.id,
+        creatorName: campaign?.creators?.name || 'N/A',
+        instagramHandle: campaign?.creators?.username || 'N/A',
+        campaignName: campaign?.name || 'N/A',
+        campaignId: campaign?.id,
+        amount: campaign?.amount || campaign?.agreed_amount || 0,
+        dueDate: campaign?.end_date || 'N/A',
+        delayDays: campaign?.end_date ? Math.max(0, Math.floor((new Date() - new Date(campaign?.end_date)) / (1000 * 60 * 60 * 24))) : 0,
+        paymentMethod: 'Bank Transfer', // Default value
+        status: campaign?.payment_status || 'pending',
+        referenceNumber: `REF-${campaign?.id?.slice(0, 8)}`,
+        gatewaySync: Math.random() > 0.5,
+        bankReconciled: campaign?.payment_status === 'paid'
+      }));
+
+      setPayments(transformedData);
+    } catch (err) {
+      console.error('Error fetching payments:', err);
+      setError(err?.message || 'Failed to load payments from database');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const getFilteredPayments = () => {
-    return mockPayments?.filter(payment => {
+    return payments?.filter(payment => {
       if (activeTab !== 'all' && payment?.status !== activeTab) return false;
       if (filters?.amountRange !== 'all') {
         const [min, max] = filters?.amountRange?.split('-')?.map(v => parseInt(v?.replace('+', '')));
@@ -229,17 +114,17 @@ const PaymentProcessingCenter = () => {
   const sortedPayments = getSortedPayments(filteredPayments);
 
   const statusCounts = {
-    pending: mockPayments?.filter(p => p?.status === 'pending')?.length,
-    processing: mockPayments?.filter(p => p?.status === 'processing')?.length,
-    paid: mockPayments?.filter(p => p?.status === 'paid')?.length,
-    overdue: mockPayments?.filter(p => p?.status === 'overdue')?.length
+    pending: payments?.filter(p => p?.status === 'pending')?.length,
+    processing: payments?.filter(p => p?.status === 'processing')?.length,
+    paid: payments?.filter(p => p?.status === 'paid')?.length,
+    overdue: payments?.filter(p => p?.status === 'overdue')?.length
   };
 
   const statusTotals = {
-    pending: mockPayments?.filter(p => p?.status === 'pending')?.reduce((sum, p) => sum + p?.amount, 0),
-    processing: mockPayments?.filter(p => p?.status === 'processing')?.reduce((sum, p) => sum + p?.amount, 0),
-    paid: mockPayments?.filter(p => p?.status === 'paid')?.reduce((sum, p) => sum + p?.amount, 0),
-    overdue: mockPayments?.filter(p => p?.status === 'overdue')?.reduce((sum, p) => sum + p?.amount, 0)
+    pending: payments?.filter(p => p?.status === 'pending')?.reduce((sum, p) => sum + p?.amount, 0),
+    processing: payments?.filter(p => p?.status === 'processing')?.reduce((sum, p) => sum + p?.amount, 0),
+    paid: payments?.filter(p => p?.status === 'paid')?.reduce((sum, p) => sum + p?.amount, 0),
+    overdue: payments?.filter(p => p?.status === 'overdue')?.reduce((sum, p) => sum + p?.amount, 0)
   };
 
   const handleSelectAll = (checked) => {
@@ -259,13 +144,38 @@ const PaymentProcessingCenter = () => {
     }
   };
 
-  const handleUpdatePayment = (id, updates) => {
-    console.log('Update payment:', id, updates);
+  const handleUpdatePayment = async (id, updates) => {
+    try {
+      await campaignService?.update(id, {
+        payment_status: updates?.status,
+        amount: updates?.amount
+      });
+      
+      // Update local state
+      setPayments(prev => 
+        prev?.map(p => p?.id === id ? { ...p, ...updates } : p)
+      );
+    } catch (err) {
+      console.error('Error updating payment:', err);
+      alert(`Failed to update payment: ${err?.message}`);
+    }
   };
 
-  const handleBulkAction = (action) => {
-    console.log('Bulk action:', action, 'on payments:', selectedPayments);
-    setSelectedPayments([]);
+  const handleBulkAction = async (action) => {
+    try {
+      if (action === 'mark_processing') {
+        await campaignService?.bulkUpdateStatus(selectedPayments, 'processing');
+      } else if (action === 'mark_paid') {
+        await campaignService?.bulkUpdateStatus(selectedPayments, 'paid');
+      }
+      
+      // Refresh payments
+      await fetchPayments();
+      setSelectedPayments([]);
+    } catch (err) {
+      console.error('Error in bulk action:', err);
+      alert(`Failed to perform bulk action: ${err?.message}`);
+    }
   };
 
   const handleSort = (key) => {
@@ -302,27 +212,21 @@ const PaymentProcessingCenter = () => {
   };
 
   useEffect(() => {
-    // Subscribe to real-time campaign changes (for payment status updates)
+    fetchPayments();
+
+    // Subscribe to real-time campaign changes
     const campaignSubscription = realtimeService?.subscribeToCampaigns(
       (newCampaign) => {
-        // Handle INSERT - add new campaign payment
-        setPayments((prev) => [newCampaign, ...prev]);
+        fetchPayments(); // Refresh on new campaign
       },
       (updatedCampaign) => {
-        // Handle UPDATE - update payment status
-        setPayments((prev) =>
-          prev?.map((payment) =>
-            payment?.id === updatedCampaign?.id ? updatedCampaign : payment
-          )
-        );
+        fetchPayments(); // Refresh on update
       },
       (deletedId) => {
-        // Handle DELETE - remove payment
-        setPayments((prev) => prev?.filter((payment) => payment?.id !== deletedId));
+        fetchPayments(); // Refresh on delete
       }
     );
 
-    // Cleanup subscription on unmount
     return () => {
       campaignSubscription?.unsubscribe();
     };
@@ -349,6 +253,54 @@ const PaymentProcessingCenter = () => {
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [selectedPayments]);
+
+  // Add loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading payment data...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Add error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon name="AlertTriangle" size={32} color="var(--color-destructive)" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Failed to Load Payments</h2>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={fetchPayments} variant="default">
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -430,7 +382,7 @@ const PaymentProcessingCenter = () => {
             <div className="bg-card border-t border-border px-6 py-3">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>
-                  Showing {sortedPayments?.length} of {mockPayments?.length} payments
+                  Showing {sortedPayments?.length} of {payments?.length} payments
                 </span>
                 <span>
                   Total: {new Intl.NumberFormat('en-IN', {

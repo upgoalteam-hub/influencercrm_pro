@@ -4,8 +4,9 @@ import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
+import { exportUtils } from '../../../utils/exportUtils';
 
-const ExportReportModal = ({ isOpen, onClose, onExport }) => {
+const ExportReportModal = ({ isOpen, onClose, onExport, payments = [] }) => {
   const [exportConfig, setExportConfig] = useState({
     format: 'excel',
     dateFrom: '',
@@ -57,8 +58,63 @@ const ExportReportModal = ({ isOpen, onClose, onExport }) => {
   };
 
   const handleExport = () => {
-    onExport(exportConfig);
-    onClose();
+    try {
+      // Get payments to export
+      const paymentsToExport = payments?.length > 0 ? payments : [];
+      
+      if (paymentsToExport?.length === 0) {
+        alert('No payment data to export');
+        return;
+      }
+
+      // Format data based on config
+      const formattedData = exportUtils?.formatCampaignData(
+        paymentsToExport,
+        exportConfig?.includeFields
+      );
+
+      // Apply date filtering if specified
+      let filteredData = formattedData;
+      if (exportConfig?.dateFrom || exportConfig?.dateTo) {
+        filteredData = formattedData?.filter((_, index) => {
+          const payment = paymentsToExport?.[index];
+          const paymentDate = new Date(payment?.dueDate);
+          
+          if (exportConfig?.dateFrom && paymentDate < new Date(exportConfig?.dateFrom)) {
+            return false;
+          }
+          if (exportConfig?.dateTo && paymentDate > new Date(exportConfig?.dateTo)) {
+            return false;
+          }
+          return true;
+        });
+      }
+
+      // Generate filename with timestamp
+      const timestamp = new Date()?.toISOString()?.slice(0, 10);
+      const filename = `payment-report-${timestamp}`;
+
+      // Export based on format
+      switch (exportConfig?.format) {
+        case 'excel':
+          exportUtils?.exportToExcel(filteredData, filename);
+          break;
+        case 'csv':
+          exportUtils?.exportToCSV(filteredData, filename);
+          break;
+        case 'pdf':
+          exportUtils?.exportToPDF(filteredData, filename);
+          break;
+        default:
+          exportUtils?.exportToExcel(filteredData, filename);
+      }
+
+      onExport?.(exportConfig);
+      onClose();
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Failed to export report: ${error?.message}`);
+    }
   };
 
   if (!isOpen) return null;

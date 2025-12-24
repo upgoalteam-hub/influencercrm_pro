@@ -10,6 +10,7 @@ import BulkActionsToolbar from './components/BulkActionsToolbar';
 import SavedFiltersPanel from './components/SavedFiltersPanel';
 import ExportDialog from './components/ExportDialog';
 import Select from '../../components/ui/Select';
+import AddCreatorModal from './components/AddCreatorModal';
 import { creatorService } from '../../services/creatorService';
 import { realtimeService } from '../../services/realtimeService';
 
@@ -31,6 +32,7 @@ export default function CreatorDatabaseManagement() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [showAddCreatorModal, setShowAddCreatorModal] = useState(false);
   const userRole = 'Super Admin';
 
   // Replace mock data with Supabase state
@@ -182,6 +184,11 @@ export default function CreatorDatabaseManagement() {
     setFilters(savedFilters);
   };
 
+  const handleCreatorAdded = (newCreator) => {
+    // Refresh creators list
+    fetchCreators();
+  };
+
   const paginatedCreators = filteredCreators?.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -292,6 +299,7 @@ export default function CreatorDatabaseManagement() {
                     iconName="UserPlus"
                     iconPosition="left"
                     iconSize={16}
+                    onClick={() => setShowAddCreatorModal(true)}
                   >
                     Add Creator
                   </Button>
@@ -407,6 +415,11 @@ export default function CreatorDatabaseManagement() {
           ? allCreators?.filter(c => selectedCreators?.includes(c?.id))
           : filteredCreators
         }
+      />
+      <AddCreatorModal
+        isOpen={showAddCreatorModal}
+        onClose={() => setShowAddCreatorModal(false)}
+        onCreatorAdded={handleCreatorAdded}
       />
     </div>
   );
