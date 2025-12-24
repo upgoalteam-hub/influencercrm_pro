@@ -46,27 +46,20 @@ export default function CreatorDatabaseManagement() {
       setError(null);
       const data = await creatorService?.getAll();
       
-      // Transform data to match existing UI structure
+      // Transform data to use exact database columns
       const transformedData = data?.map(creator => ({
         id: creator?.id,
+        srNo: creator?.srNo || 'N/A',
         name: creator?.name || 'N/A',
-        email: creator?.email || 'N/A',
-        profileImage: '', // No image in database
-        profileImageAlt: `Profile photo of ${creator?.name || 'creator'}`,
-        instagramHandle: creator?.username || 'N/A',
-        followers: parseInt(creator?.followersTier?.replace(/[^\d]/g, '') || 0),
-        engagementRate: 0, // Not in database
-        category: '', // Not in database
-        city: creator?.city || 'N/A',
-        status: 'active', // Default status
-        lastPrice: 0, // Not in database
-        lastCampaignDate: '', // Not in database
-        syncStatus: 'synced',
-        state: creator?.state || 'N/A',
-        whatsapp: creator?.whatsapp || '',
-        instagramLink: creator?.instagramLink || '',
+        instagramLink: creator?.instagramLink || 'N/A',
         followersTier: creator?.followersTier || 'N/A',
-        sheetSource: creator?.sheetSource || ''
+        state: creator?.state || 'N/A',
+        city: creator?.city || 'N/A',
+        whatsapp: creator?.whatsapp || 'N/A',
+        email: creator?.email || 'N/A',
+        gender: creator?.gender || 'N/A',
+        username: creator?.username || 'N/A',
+        sheetSource: creator?.sheetSource || 'N/A'
       }));
 
       setAllCreators(transformedData);
@@ -119,7 +112,7 @@ export default function CreatorDatabaseManagement() {
     if (searchQuery) {
       result = result?.filter((creator) =>
         creator?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
-        creator?.instagramHandle?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
+        creator?.username?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
         creator?.email?.toLowerCase()?.includes(searchQuery?.toLowerCase())
       );
     }
@@ -127,33 +120,12 @@ export default function CreatorDatabaseManagement() {
     Object.entries(filters)?.forEach(([key, values]) => {
       if (values?.length > 0) {
         result = result?.filter((creator) => {
-          if (key === 'followers') {
-            return values?.some((range) => {
-              const [min, max] = range?.split('-')?.map((v) => {
-                if (v?.includes('k')) return parseInt(v) * 1000;
-                if (v?.includes('m')) return parseInt(v) * 1000000;
-                if (v?.includes('+')) return parseInt(v);
-                return parseInt(v);
-              });
-              if (range?.includes('+')) {
-                return creator?.followers >= min;
-              }
-              return creator?.followers >= min && creator?.followers <= max;
-            });
-          } else if (key === 'engagement') {
-            return values?.some((range) => {
-              const [min, max] = range?.split('-')?.map((v) => parseFloat(v?.replace('+', '')));
-              if (range?.includes('+')) {
-                return creator?.engagementRate >= min;
-              }
-              return creator?.engagementRate >= min && creator?.engagementRate <= max;
-            });
-          } else if (key === 'category') {
-            return values?.some((v) => creator?.category?.toLowerCase() === v?.toLowerCase());
-          } else if (key === 'city') {
+          if (key === 'city') {
             return values?.some((v) => creator?.city?.toLowerCase()?.includes(v?.toLowerCase()));
-          } else if (key === 'status') {
-            return values?.includes(creator?.status);
+          } else if (key === 'state') {
+            return values?.some((v) => creator?.state?.toLowerCase()?.includes(v?.toLowerCase()));
+          } else if (key === 'followers') {
+            return values?.some((tier) => creator?.followersTier?.toLowerCase()?.includes(tier?.toLowerCase()));
           }
           return true;
         });
@@ -164,11 +136,6 @@ export default function CreatorDatabaseManagement() {
       result?.sort((a, b) => {
         let aValue = a?.[sortConfig?.column];
         let bValue = b?.[sortConfig?.column];
-
-        if (sortConfig?.column === 'lastCampaignDate') {
-          aValue = new Date(aValue || 0);
-          bValue = new Date(bValue || 0);
-        }
 
         if (aValue < bValue) return sortConfig?.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig?.direction === 'asc' ? 1 : -1;

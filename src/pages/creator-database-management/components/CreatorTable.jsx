@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
-import Image from '../../../components/AppImage';
+
 import Button from '../../../components/ui/Button';
 
 const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole }) => {
@@ -101,26 +101,17 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 aria-label="Select all creators"
               />
             </th>
-            <th className="px-4 py-3 text-left">
-              <span className="text-xs font-medium text-muted-foreground">Sync</span>
-            </th>
-            <SortableHeader column="name" label="Creator" />
-            <SortableHeader column="instagram" label="Instagram" />
-            <SortableHeader column="followers" label="Followers" />
-            <SortableHeader column="engagement" label="Engagement" />
-            <th className="px-4 py-3 text-left">
-              <span className="text-xs font-medium text-muted-foreground">Category</span>
-            </th>
-            <th className="px-4 py-3 text-left">
-              <span className="text-xs font-medium text-muted-foreground">Location</span>
-            </th>
-            {userRole === 'Super Admin' && (
-              <SortableHeader column="lastPrice" label="Last Price" />
-            )}
-            <SortableHeader column="lastCampaign" label="Last Campaign" />
-            <th className="px-4 py-3 text-left">
-              <span className="text-xs font-medium text-muted-foreground">Status</span>
-            </th>
+            <SortableHeader column="srNo" label="Sr No" />
+            <SortableHeader column="name" label="Name" />
+            <SortableHeader column="instagramLink" label="Instagram Link" />
+            <SortableHeader column="followersTier" label="Followers Tier" />
+            <SortableHeader column="state" label="State" />
+            <SortableHeader column="city" label="City" />
+            <SortableHeader column="whatsapp" label="WhatsApp" />
+            <SortableHeader column="email" label="Email" />
+            <SortableHeader column="gender" label="Gender" />
+            <SortableHeader column="username" label="Username" />
+            <SortableHeader column="sheetSource" label="Sheet Source" />
             <th className="px-4 py-3 text-left">
               <span className="text-xs font-medium text-muted-foreground">Actions</span>
             </th>
@@ -142,77 +133,53 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 />
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center justify-center">
-                  {getSyncStatusIcon(creator?.syncStatus)}
+                <div className="text-sm text-foreground">{creator?.srNo}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                  {creator?.name}
                 </div>
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-muted">
-                    <Image
-                      src={creator?.profileImage}
-                      alt={creator?.profileImageAlt}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">
-                      {creator?.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {creator?.email}
-                    </div>
-                  </div>
+                {creator?.instagramLink !== 'N/A' ? (
+                  <a
+                    href={creator?.instagramLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                  >
+                    {creator?.instagramLink}
+                    <Icon name="ExternalLink" size={12} />
+                  </a>
+                ) : (
+                  <span className="text-sm text-muted-foreground">N/A</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-foreground">{creator?.followersTier}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-foreground">{creator?.state}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-foreground">{creator?.city}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-foreground">{creator?.whatsapp}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                  {creator?.email}
                 </div>
               </td>
               <td className="px-4 py-3">
-                <a
-                  href={`https://instagram.com/${creator?.instagramHandle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                >
-                  @{creator?.instagramHandle}
-                  <Icon name="ExternalLink" size={12} />
-                </a>
+                <div className="text-sm text-foreground capitalize">{creator?.gender}</div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-foreground font-medium">
-                  {formatNumber(creator?.followers)}
-                </div>
+                <div className="text-sm text-foreground">@{creator?.username}</div>
               </td>
               <td className="px-4 py-3">
-                <div className="text-sm text-foreground">
-                  {creator?.engagementRate}%
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                  {creator?.category}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Icon name="MapPin" size={14} />
-                  {creator?.city}
-                </div>
-              </td>
-              {userRole === 'Super Admin' && (
-                <td className="px-4 py-3">
-                  <div className="text-sm text-foreground font-medium">
-                    ₹{creator?.lastPrice?.toLocaleString('en-IN')}
-                  </div>
-                </td>
-              )}
-              <td className="px-4 py-3">
-                <div className="text-sm text-muted-foreground">
-                  {formatDate(creator?.lastCampaignDate)}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusColor(creator?.status)}`}>
-                  {creator?.status}
-                </span>
+                <div className="text-sm text-muted-foreground">{creator?.sheetSource}</div>
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
