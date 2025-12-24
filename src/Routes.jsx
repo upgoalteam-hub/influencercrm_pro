@@ -10,6 +10,8 @@ import CreatorDatabaseManagement from './pages/creator-database-management';
 import CreatorProfileDetails from './pages/creator-profile-details';
 import CampaignManagementCenter from './pages/campaign-management-center';
 import BrandContactManagement from './pages/brand-contact-management';
+import BulkInstagramProcessor from './pages/bulk-instagram-processor';
+import SystemSettingsUserManagement from './pages/system-settings-user-management';
 
 const Routes = () => {
   return (
@@ -26,6 +28,8 @@ const Routes = () => {
         <Route path="/creator-database-management" element={<CreatorDatabaseManagement />} />
         <Route path="/creator-profile-details" element={<CreatorProfileDetails />} />
         <Route path="/campaign-management-center" element={<CampaignManagementCenter />} />
+        <Route path="/bulk-instagram-processor" element={<BulkInstagramProcessor />} />
+        <Route path="/system-settings-user-management" element={<SystemSettingsUserManagement />} />
         <Route path="*" element={<NotFound />} />
       </RouterRoutes>
       </ErrorBoundary>

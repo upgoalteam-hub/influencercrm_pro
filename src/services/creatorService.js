@@ -93,5 +93,44 @@ export const creatorService = {
       console.error('Error fetching creator:', error);
       throw error;
     }
+  },
+
+  /**
+   * Search creators by multiple Instagram links (bulk search)
+   * @param {Array<string>} instagramLinks - Array of Instagram links to search
+   * @returns {Promise<Object>} Object with found creators and not found links
+   */
+  async searchByInstagramLinks(instagramLinks) {
+    try {
+      if (!instagramLinks || instagramLinks?.length === 0) {
+        return { found: [], notFound: [] };
+      }
+
+      // Clean and normalize Instagram links (remove trailing slashes, etc.)
+      const cleanedLinks = instagramLinks?.map(link => link?.trim()?.replace(/\/$/, ''));
+
+      // Search for creators with matching Instagram links
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('*')
+        ?.in('instagram_link', cleanedLinks)
+        ?.order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const foundCreators = data || [];
+      
+      // Determine which links were not found
+      const foundLinks = foundCreators?.map(creator => creator?.instagram_link?.trim()?.replace(/\/$/, ''));
+      const notFoundLinks = cleanedLinks?.filter(link => !foundLinks?.includes(link));
+
+      return {
+        found: foundCreators,
+        notFound: notFoundLinks
+      };
+    } catch (error) {
+      console.error('Error searching creators by Instagram links:', error);
+      throw error;
+    }
   }
 };

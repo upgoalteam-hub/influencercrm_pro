@@ -1,47 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
-import { Building2 } from 'lucide-react';
+import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const navigationItems = [
-    {
-      label: 'Dashboard',
-      path: '/executive-dashboard',
-      icon: 'LayoutDashboard',
-      badge: null,
-      tooltip: 'Executive Dashboard - Real-time business intelligence'
-    },
-    {
-      label: 'Creators',
-      path: '/creator-database-management',
-      icon: 'Users',
-      badge: null,
-      tooltip: 'Creator Database - Manage influencer relationships'
-    },
-    {
-      label: 'Campaigns',
-      path: '/campaign-management-center',
-      icon: 'Megaphone',
-      badge: 3,
-      tooltip: 'Campaign Management - Active campaigns and tracking'
-    },
-    {
-      label: 'Payments',
-      path: '/payment-processing-center',
-      icon: 'CreditCard',
-      badge: 5,
-      tooltip: 'Payment Processing - Pending payments and transactions'
-    },
-    {
-      path: '/brand-contact-management',
-      label: 'Brand & Contact Management',
-      icon: Building2
-    }
+  const navigation = [
+    { name: 'Executive Dashboard', href: '/', icon: Home },
+    { name: 'Creator Database', href: '/creator-database-management', icon: Database },
+    { name: 'Campaign Management', href: '/campaign-management-center', icon: FolderKanban },
+    { name: 'Payment Processing', href: '/payment-processing-center', icon: DollarSign },
+    { name: 'Brand & Contact', href: '/brand-contact-management', icon: Users },
+    { name: 'Bulk Instagram Processor', href: '/bulk-instagram-processor', icon: LinkIcon },
+    { name: 'System Settings', href: '/system-settings-user-management', icon: Settings },
   ];
 
   const handleNavigation = (path) => {
@@ -86,20 +60,17 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
         </div>
 
         <nav className="sidebar-nav" role="navigation" aria-label="Main navigation">
-          {navigationItems?.map((item) => (
+          {navigation?.map((item) => (
             <button
-              key={item?.path}
-              onClick={() => handleNavigation(item?.path)}
-              className={`sidebar-nav-item ${isActive(item?.path) ? 'active' : ''}`}
-              title={isCollapsed ? item?.tooltip : ''}
-              aria-label={item?.label}
-              aria-current={isActive(item?.path) ? 'page' : undefined}
+              key={item?.href}
+              onClick={() => handleNavigation(item?.href)}
+              className={`sidebar-nav-item ${isActive(item?.href) ? 'active' : ''}`}
+              title={isCollapsed ? item?.name : ''}
+              aria-label={item?.name}
+              aria-current={isActive(item?.href) ? 'page' : undefined}
             >
               <Icon name={item?.icon} size={20} />
-              <span className="sidebar-nav-item-text">{item?.label}</span>
-              {item?.badge && (
-                <span className="sidebar-nav-item-badge">{item?.badge}</span>
-              )}
+              <span className="sidebar-nav-item-text">{item?.name}</span>
             </button>
           ))}
         </nav>
