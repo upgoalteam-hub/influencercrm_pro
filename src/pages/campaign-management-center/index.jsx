@@ -7,6 +7,7 @@ import CampaignFilters from './components/CampaignFilters';
 import CampaignCard from './components/CampaignCard';
 import CampaignDetails from './components/CampaignDetails';
 import CampaignToolbar from './components/CampaignToolbar';
+import CreateCampaignModal from './components/CreateCampaignModal';
 import { realtimeService } from '../../services/realtimeService';
 import { campaignService } from '../../services/campaignService';
 
@@ -19,6 +20,7 @@ const CampaignManagementCenter = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [selectedCampaigns, setSelectedCampaigns] = useState([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [filters, setFilters] = useState({
     status: [],
     brand: '',
@@ -656,7 +658,12 @@ const CampaignManagementCenter = () => {
   };
 
   const handleCreateCampaign = () => {
-    alert('Create Campaign feature: This would open a modal to create a new campaign with form fields for name, brand, budget, dates, and creator assignments.');
+    setShowCreateModal(true);
+  };
+
+  const handleCampaignCreated = async () => {
+    await loadCampaigns();
+    setShowCreateModal(false);
   };
 
   const handleEditCampaign = () => {
@@ -807,8 +814,16 @@ const CampaignManagementCenter = () => {
           </div>
         </div>
       </main>
-    </div>);
 
+      {/* Create Campaign Modal */}
+      {showCreateModal && (
+        <CreateCampaignModal
+          onClose={() => setShowCreateModal(false)}
+          onCampaignCreated={handleCampaignCreated}
+        />
+      )}
+    </div>
+  );
 };
 
 export default CampaignManagementCenter;
