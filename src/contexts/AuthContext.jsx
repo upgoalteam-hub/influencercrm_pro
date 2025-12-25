@@ -71,9 +71,34 @@ export const AuthProvider = ({ children }) => {
   const signIn = async (email, password) => {
     try {
       const { data, error } = await supabase?.auth?.signInWithPassword({ email, password })
-      return { data, error }
+      
+      if (error) {
+        // Provide better error messages for common auth issues
+        if (error?.message?.includes('Invalid login credentials')) {
+          return { 
+            data: null, 
+            error: { 
+              message: 'Invalid email or password. Please verify your credentials.\n\nIf using demo accounts:\n• admin@crm.com / Admin@123456\n• manager@crm.com / Manager@123456\n\n⚠️ These users must be created in Supabase Dashboard first. Check the migration file (20251225095026_fix_auth_integration.sql) for setup instructions.' 
+            } 
+          }
+        }
+        
+        if (error?.message?.includes('Email not confirmed')) {
+          return {
+            data: null,
+            error: {
+              message: 'Email not confirmed. Please check the "Auto Confirm User" option when creating users in Supabase Dashboard.'
+            }
+          }
+        }
+        
+        return { data: null, error }
+      }
+      
+      return { data, error: null }
     } catch (error) {
-      return { error: { message: 'Network error. Please try again.' } }
+      console.error('Sign in error:', error)
+      return { data: null, error: { message: 'Network error. Please check your connection and try again.' } }
     }
   }
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import Icon from '../../../components/AppIcon';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
@@ -11,83 +11,41 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
     password: '',
     rememberMe: false
   });
+
   const [showPassword, setShowPassword] = useState(false);
-  const [validationErrors, setValidationErrors] = useState({});
-  const navigate = useNavigate();
 
-  const whitelistedDomains = ['influencercrm.com', 'marketing.influencercrm.com'];
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex?.test(email)) {
-      return 'Please enter a valid email address';
-    }
-    
-    const domain = email?.split('@')?.[1];
-    if (!whitelistedDomains?.includes(domain)) {
-      return 'Email domain not authorized. Please use your company email.';
-    }
-    
-    return null;
-  };
-
-  const validatePassword = (password) => {
-    if (password?.length < 8) {
-      return 'Password must be at least 8 characters long';
-    }
-    return null;
+  const handleSubmit = (e) => {
+    e?.preventDefault();
+    onSubmit(formData);
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e?.target;
-    const fieldValue = type === 'checkbox' ? checked : value;
-    
     setFormData(prev => ({
       ...prev,
-      [name]: fieldValue
+      [name]: type === 'checkbox' ? checked : value
     }));
-
-    if (validationErrors?.[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e?.preventDefault();
-    
-    const errors = {};
-    const emailError = validateEmail(formData?.email);
-    const passwordError = validatePassword(formData?.password);
-    
-    if (emailError) errors.email = emailError;
-    if (passwordError) errors.password = passwordError;
-    
-    if (Object.keys(errors)?.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-    
-    onSubmit(formData);
   };
 
   const handleForgotPassword = () => {
-    if (!formData?.email) {
-      setValidationErrors({ email: 'Please enter your email address first' });
-      return;
-    }
-    
-    const emailError = validateEmail(formData?.email);
-    if (emailError) {
-      setValidationErrors({ email: emailError });
-      return;
-    }
+    // Handle forgot password logic here
+    console.log('Forgot password clicked');
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Icon name="AlertCircle" size={20} color="var(--color-destructive)" className="flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-destructive mb-1">Authentication Error</p>
+              <p className="text-xs text-destructive/90 whitespace-pre-line">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <Input
           label="Email Address"
@@ -97,7 +55,6 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
           placeholder="your.name@influencercrm.com"
           value={formData?.email}
           onChange={handleChange}
-          error={validationErrors?.email}
           required
           disabled={isLoading}
           className="mb-4"
@@ -112,7 +69,6 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
           placeholder="Enter your password"
           value={formData?.password}
           onChange={handleChange}
-          error={validationErrors?.password}
           required
           disabled={isLoading}
           className="mb-2"
@@ -145,12 +101,6 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
           Forgot password?
         </button>
       </div>
-      {error && (
-        <div className="flex items-start gap-2 p-3 bg-error/10 border border-error/20 rounded-md">
-          <Icon name="AlertCircle" size={18} color="var(--color-error)" className="flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-error">{error}</p>
-        </div>
-      )}
       <Button
         type="submit"
         variant="default"

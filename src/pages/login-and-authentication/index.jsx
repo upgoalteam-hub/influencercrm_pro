@@ -64,7 +64,10 @@ const LoginAndAuthentication = () => {
           setLockoutTimer(300);
           setError('Too many failed attempts. Account locked for 5 minutes.');
         } else {
-          setError(`${signInError?.message || 'Invalid email or password'}. ${3 - newFailedAttempts} attempts remaining before account lockout.`);
+          // Format error message for better readability
+          const errorMsg = signInError?.message || 'Invalid email or password';
+          const attemptsRemaining = 3 - newFailedAttempts;
+          setError(`${errorMsg}\n\n⚠️ ${attemptsRemaining} ${attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before account lockout.`);
         }
       } else {
         // Store user info
@@ -169,25 +172,41 @@ const LoginAndAuthentication = () => {
 
             <div className="mt-8 pt-6 border-t border-border">
               <div className="bg-muted/50 rounded-lg p-4">
-                <p className="text-xs font-medium text-foreground mb-3">
-                  <Icon name="Key" size={14} className="inline mr-1" />
-                  Demo Credentials for Testing:
+                <p className="text-xs font-medium text-foreground mb-3 flex items-center gap-2">
+                  <Icon name="Key" size={14} />
+                  Demo Credentials for Testing
                 </p>
-                <div className="space-y-2 text-xs text-muted-foreground">
-                  <div className="flex items-start gap-2">
-                    <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">Super Admin:</p>
-                      <p>admin@crm.com / Admin@123456</p>
+                <div className="space-y-3 text-xs">
+                  <div className="bg-card border border-border rounded p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground mb-1">Super Admin</p>
+                        <div className="space-y-1 text-muted-foreground">
+                          <p><span className="font-medium">Email:</span> admin@crm.com</p>
+                          <p><span className="font-medium">Password:</span> Admin@123456</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">Manager:</p>
-                      <p>manager@crm.com / Manager@123456</p>
+                  <div className="bg-card border border-border rounded p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground mb-1">Manager</p>
+                        <div className="space-y-1 text-muted-foreground">
+                          <p><span className="font-medium">Email:</span> manager@crm.com</p>
+                          <p><span className="font-medium">Password:</span> Manager@123456</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </div>
+                <div className="mt-3 p-2 bg-warning/10 border border-warning/30 rounded">
+                  <p className="text-xs text-warning flex items-start gap-2">
+                    <Icon name="AlertTriangle" size={12} className="flex-shrink-0 mt-0.5" />
+                    <span><strong>Setup Required:</strong> Demo accounts must be manually created in Supabase Dashboard before login will work. See migration file <code className="px-1 py-0.5 bg-background rounded text-[10px]">20251225095026_fix_auth_integration.sql</code> for detailed setup instructions.</span>
+                  </p>
                 </div>
               </div>
             </div>
