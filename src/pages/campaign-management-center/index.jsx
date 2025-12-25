@@ -8,6 +8,11 @@ import CampaignCard from './components/CampaignCard';
 import CampaignDetails from './components/CampaignDetails';
 import CampaignToolbar from './components/CampaignToolbar';
 import { realtimeService } from '../../services/realtimeService';
+import { campaignService } from '../../services/campaignService';
+
+import { exportUtils } from '../../utils/exportUtils';
+import Button from '../../components/ui/Button';
+
 
 const CampaignManagementCenter = () => {
   const navigate = useNavigate();
@@ -23,6 +28,10 @@ const CampaignManagementCenter = () => {
   });
   const [sortBy, setSortBy] = useState('date-newest');
   const [viewMode, setViewMode] = useState('grid');
+  const [campaigns, setCampaigns] = useState([]);
+  const [filteredCampaigns, setFilteredCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const mockCampaigns = [
   {
@@ -377,9 +386,6 @@ const CampaignManagementCenter = () => {
   }];
 
 
-  const [campaigns, setCampaigns] = useState(mockCampaigns);
-  const [filteredCampaigns, setFilteredCampaigns] = useState(mockCampaigns);
-
   const activeCounts = {
     planning: campaigns?.filter((c) => c?.status === 'planning')?.length,
     active: campaigns?.filter((c) => c?.status === 'active')?.length,
@@ -387,28 +393,59 @@ const CampaignManagementCenter = () => {
     paused: campaigns?.filter((c) => c?.status === 'paused')?.length
   };
 
+  const loadCampaigns = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await campaignService?.getAll();
+      
+      // Transform data to match expected format
+      const transformedData = data?.map(campaign => ({
+        id: campaign?.id,
+        name: campaign?.name || campaign?.campaign_name,
+        brandName: campaign?.brand || campaign?.brand_name,
+        status: campaign?.payment_status === 'paid' ? 'completed' : campaign?.payment_status === 'pending' ? 'active' : 'planning',
+        creatorCount: 1, // Single creator per campaign in current schema
+        deliverableCount: 0, // Calculated from deliverables
+        completedDeliverables: 0,
+        totalBudget: campaign?.amount || campaign?.agreed_amount || 0,
+        budgetUsed: campaign?.payment_status === 'paid' ? (campaign?.amount || campaign?.agreed_amount || 0) : 0,
+        startDate: campaign?.start_date,
+        endDate: campaign?.end_date,
+        description: campaign?.campaign_name || campaign?.name,
+        assignedCreators: campaign?.creators ? [{
+          id: campaign?.creators?.id,
+          name: campaign?.creators?.name,
+          instagram: campaign?.creators?.username,
+          avatar: campaign?.creators?.instagram_link,
+          deliverables: 0,
+          amount: campaign?.amount || campaign?.agreed_amount || 0,
+          status: campaign?.payment_status,
+          paymentStatus: campaign?.payment_status === 'paid' ? 'Paid' : 'Pending'
+        }] : [],
+        deliverables: [],
+        payments: []
+      }));
+
+      setCampaigns(transformedData);
+    } catch (err) {
+      console.error('Error loading campaigns:', err);
+      setError(err?.message || 'Failed to load campaigns');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    loadCampaigns();
+
     // Subscribe to real-time campaign changes
     const campaignSubscription = realtimeService?.subscribeToCampaigns(
-      (newCampaign) => {
-        // Handle INSERT - add new campaign to the list
-        setCampaigns((prev) => [newCampaign, ...prev]);
-      },
-      (updatedCampaign) => {
-        // Handle UPDATE - update campaign in the list
-        setCampaigns((prev) =>
-          prev?.map((campaign) =>
-            campaign?.id === updatedCampaign?.id ? updatedCampaign : campaign
-          )
-        );
-      },
-      (deletedId) => {
-        // Handle DELETE - remove campaign from the list
-        setCampaigns((prev) => prev?.filter((campaign) => campaign?.id !== deletedId));
-      }
+      () => loadCampaigns(), // Refresh on INSERT
+      () => loadCampaigns(), // Refresh on UPDATE
+      () => loadCampaigns()  // Refresh on DELETE
     );
 
-    // Cleanup subscription on unmount
     return () => {
       campaignSubscription?.unsubscribe();
     };
@@ -472,11 +509,18 @@ const CampaignManagementCenter = () => {
   };
 
   const handleQuickStatusChange = () => {
-    console.log('Quick status change for campaign:', selectedCampaign?.id);
+    if (!selectedCampaign) return;
+    
+    const statusOptions = ['planning', 'active', 'completed', 'paused'];
+    const currentIndex = statusOptions?.indexOf(selectedCampaign?.status);
+    const nextStatus = statusOptions?.[(currentIndex + 1) % statusOptions?.length];
+    
+    alert(`Quick Status Change: ${selectedCampaign?.name}\nCurrent: ${selectedCampaign?.status}\nNext: ${nextStatus}\n\nThis would update the campaign status.`);
   };
 
   const handleAssignCreator = () => {
-    console.log('Assign creator to campaign:', selectedCampaign?.id);
+    if (!selectedCampaign) return;
+    alert(`Assign Creator (Shortcut): ${selectedCampaign?.name}\n\nThis would quickly open the creator assignment modal.`);
   };
 
   const applyFiltersAndSort = () => {
@@ -554,29 +598,136 @@ const CampaignManagementCenter = () => {
     setSelectedCampaign(campaign);
   };
 
-  const handleBulkStatusUpdate = (status) => {
-    console.log('Bulk update status to:', status, 'for campaigns:', selectedCampaigns);
+  const handleBulkStatusUpdate = async (status) => {
+    try {
+      if (selectedCampaigns?.length === 0) {
+        alert('No campaigns selected for bulk update');
+        return;
+      }
+
+      const statusMap = {
+        'active': 'processing',
+        'completed': 'paid',
+        'planning': 'pending',
+        'paused': 'pending'
+      };
+
+      await campaignService?.bulkUpdateStatus(selectedCampaigns, statusMap?.[status] || 'pending');
+      
+      alert(`Successfully updated ${selectedCampaigns?.length} campaign(s) status to ${status}`);
+      setSelectedCampaigns([]);
+      await loadCampaigns();
+    } catch (error) {
+      console.error('Bulk status update failed:', error);
+      alert(`Failed to update campaign status: ${error?.message}`);
+    }
   };
 
   const handleExport = () => {
-    console.log('Exporting campaigns data');
+    try {
+      const campaignsToExport = filteredCampaigns?.length > 0 ? filteredCampaigns : campaigns;
+      
+      if (campaignsToExport?.length === 0) {
+        alert('No campaigns available to export');
+        return;
+      }
+
+      const exportData = campaignsToExport?.map(campaign => ({
+        'Campaign Name': campaign?.name,
+        'Brand': campaign?.brandName,
+        'Status': campaign?.status,
+        'Creator Count': campaign?.creatorCount,
+        'Total Budget': campaign?.totalBudget,
+        'Budget Used': campaign?.budgetUsed,
+        'Start Date': campaign?.startDate,
+        'End Date': campaign?.endDate,
+        'Progress': `${Math.round((campaign?.completedDeliverables / campaign?.deliverableCount) * 100) || 0}%`
+      }));
+
+      const timestamp = new Date()?.toISOString()?.slice(0, 10);
+      const filename = `campaigns-export-${timestamp}`;
+
+      exportUtils?.exportToExcel(exportData, filename);
+      alert(`Successfully exported ${campaignsToExport?.length} campaign records!`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Failed to export campaigns: ${error?.message}`);
+    }
   };
 
   const handleCreateCampaign = () => {
-    console.log('Create new campaign');
+    alert('Create Campaign feature: This would open a modal to create a new campaign with form fields for name, brand, budget, dates, and creator assignments.');
   };
 
   const handleEditCampaign = () => {
-    console.log('Edit campaign:', selectedCampaign?.id);
+    if (!selectedCampaign) {
+      alert('No campaign selected to edit');
+      return;
+    }
+    alert(`Edit Campaign: ${selectedCampaign?.name}\n\nThis would open a modal with editable fields for campaign details.`);
   };
 
   const handleDuplicateCampaign = () => {
-    console.log('Duplicate campaign:', selectedCampaign?.id);
+    if (!selectedCampaign) {
+      alert('No campaign selected to duplicate');
+      return;
+    }
+    alert(`Duplicate Campaign: ${selectedCampaign?.name}\n\nThis would create a copy of the campaign with "(Copy)" appended to the name.`);
   };
 
   const handleAssignCreatorToCampaign = () => {
-    console.log('Assign creator to campaign:', selectedCampaign?.id);
+    if (!selectedCampaign) {
+      alert('No campaign selected for creator assignment');
+      return;
+    }
+    alert(`Assign Creator to: ${selectedCampaign?.name}\n\nThis would open a modal to search and select creators from the database.`);
   };
+
+  // Add loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading campaigns...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Add error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon name="AlertTriangle" size={32} color="var(--color-destructive)" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Failed to Load Campaigns</h2>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={loadCampaigns} variant="default">
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

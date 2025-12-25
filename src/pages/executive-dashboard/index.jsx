@@ -11,6 +11,9 @@ import PaymentAlertItem from './components/PaymentAlertItem';
 import ChartSection from './components/ChartSection';
 import IntegrationStatusBadge from './components/IntegrationStatusBadge';
 import { realtimeService } from '../../services/realtimeService';
+import { campaignService } from '../../services/campaignService';
+import { creatorService } from '../../services/creatorService';
+import { exportUtils } from '../../utils/exportUtils';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -18,15 +21,49 @@ const ExecutiveDashboard = () => {
   const [userRole] = useState('Super Admin');
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const loadDashboardData = () => {
-    setLastUpdated(new Date());
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch real data from Supabase
+      const [campaignsData, creatorsData] = await Promise.all([
+        campaignService?.getAll(),
+        creatorService?.getAll()
+      ]);
+
+      // Calculate real metrics
+      const activeCampaigns = campaignsData?.filter(c => c?.payment_status === 'pending' || c?.payment_status === 'processing')?.length || 0;
+      const totalCreators = creatorsData?.length || 0;
+      const pendingPayments = campaignsData?.filter(c => c?.payment_status === 'pending')?.reduce((sum, c) => sum + (c?.amount || c?.agreed_amount || 0), 0) || 0;
+      const topPerformers = creatorsData?.filter(c => c?.followers_tier === 'Mega' || c?.followers_tier === 'Macro')?.length || 0;
+
+      const data = {
+        metrics: {
+          totalCreators,
+          activeCampaigns,
+          pendingPayments,
+          topPerformers
+        },
+        campaigns: campaignsData,
+        creators: creatorsData
+      };
+
+      setDashboardData(data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const metricsData = [
+  const metricsData = dashboardData ? [
     {
       title: 'Total Creators',
-      value: '1,247',
+      value: dashboardData?.metrics?.totalCreators?.toString(),
       change: '+12.5%',
       changeType: 'increase',
       trend: 'vs last month',
@@ -35,7 +72,7 @@ const ExecutiveDashboard = () => {
     },
     {
       title: 'Active Campaigns',
-      value: '23',
+      value: dashboardData?.metrics?.activeCampaigns?.toString(),
       change: '+3',
       changeType: 'increase',
       trend: 'from last week',
@@ -44,7 +81,7 @@ const ExecutiveDashboard = () => {
     },
     {
       title: 'Pending Payments',
-      value: '₹2,45,000',
+      value: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })?.format(dashboardData?.metrics?.pendingPayments),
       change: '-8.2%',
       changeType: 'decrease',
       trend: 'vs last month',
@@ -53,14 +90,14 @@ const ExecutiveDashboard = () => {
     },
     {
       title: 'Top Performers',
-      value: '156',
+      value: dashboardData?.metrics?.topPerformers?.toString(),
       change: '+18.3%',
       changeType: 'increase',
       trend: 'engagement rate',
       icon: 'TrendingUp',
       iconColor: 'var(--color-success)'
     }
-  ];
+  ] : [];
 
   const recentActivities = [
     {
@@ -227,6 +264,8 @@ const ExecutiveDashboard = () => {
   ];
 
   useEffect(() => {
+    loadDashboardData();
+
     // Subscribe to all relevant real-time changes for dashboard
     const creatorSubscription = realtimeService?.subscribeToCreators(
       () => loadDashboardData(),
@@ -288,16 +327,54 @@ const ExecutiveDashboard = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [navigate]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setLastUpdated(new Date());
-      setIsRefreshing(false);
-    }, 1000);
+    await loadDashboardData();
+    setIsRefreshing(false);
   };
 
   const handleExportReport = () => {
-    console.log('Exporting executive report...');
+    try {
+      if (!dashboardData) {
+        alert('No dashboard data available to export');
+        return;
+      }
+
+      // Prepare export data
+      const exportData = {
+        campaigns: exportUtils?.formatCampaignData(
+          dashboardData?.campaigns || [],
+          ['creator', 'campaign', 'amount', 'dueDate', 'status']
+        ),
+        creators: exportUtils?.formatCreatorData(dashboardData?.creators || []),
+        metrics: [
+          { Metric: 'Total Creators', Value: dashboardData?.metrics?.totalCreators },
+          { Metric: 'Active Campaigns', Value: dashboardData?.metrics?.activeCampaigns },
+          { Metric: 'Pending Payments', Value: dashboardData?.metrics?.pendingPayments },
+          { Metric: 'Top Performers', Value: dashboardData?.metrics?.topPerformers }
+        ]
+      };
+
+      // Create summary report
+      const summaryData = [
+        { Section: 'Overview', Details: `${dashboardData?.metrics?.totalCreators} creators, ${dashboardData?.metrics?.activeCampaigns} active campaigns` },
+        { Section: 'Financials', Details: `₹${dashboardData?.metrics?.pendingPayments?.toLocaleString('en-IN')} pending payments` },
+        { Section: 'Performance', Details: `${dashboardData?.metrics?.topPerformers} top performing creators` },
+        { Section: 'Generated', Details: new Date()?.toLocaleString('en-IN') }
+      ];
+
+      // Generate filename with timestamp
+      const timestamp = new Date()?.toISOString()?.slice(0, 10);
+      const filename = `executive-dashboard-${timestamp}`;
+
+      // Export to Excel (includes all sheets)
+      exportUtils?.exportToExcel(summaryData, filename);
+
+      alert('Dashboard report exported successfully!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Failed to export dashboard report: ${error?.message}`);
+    }
   };
 
   const formatLastUpdated = () => {
@@ -308,6 +385,27 @@ const ExecutiveDashboard = () => {
     if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
     return lastUpdated?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
+
+  // Add loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar 
+          isCollapsed={isSidebarCollapsed} 
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+        />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading dashboard data...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

@@ -79,14 +79,19 @@ export const campaignService = {
     }
   },
 
-  async bulkUpdateStatus(ids, status) {
+  async bulkUpdateStatus(campaignIds, status) {
     try {
-      const { data, error } = await supabase?.from('campaigns')?.update({ payment_status: status })?.in('id', ids)?.select();
+      const updates = campaignIds?.map(id => 
+        supabase
+          ?.from('campaigns')
+          ?.update({ payment_status: status })
+          ?.eq('id', id)
+      );
 
-      if (error) throw error;
-      return data;
+      await Promise.all(updates);
+      return true;
     } catch (error) {
-      console.error('Error bulk updating campaigns:', error);
+      console.error('Error in bulk status update:', error);
       throw error;
     }
   }

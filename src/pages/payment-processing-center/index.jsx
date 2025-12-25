@@ -15,6 +15,27 @@ import { campaignService } from '../../services/campaignService';
 import { realtimeService } from '../../services/realtimeService';
 import Icon from '../../components/AppIcon';
 
+// Mock exportUtils for demonstration
+const exportUtils = {
+  formatCampaignData: (data, fields) => {
+    return data?.map(item => {
+      const result = {};
+      fields?.forEach(field => {
+        result[field] = item?.[field];
+      });
+      return result;
+    });
+  },
+  exportToExcel: (data, filename) => {
+    console.log('Exporting to Excel:', data, filename);
+  },
+  exportToCSV: (data, filename) => {
+    console.log('Exporting to CSV:', data, filename);
+  },
+  exportToPDF: (data, filename) => {
+    console.log('Exporting to PDF:', data, filename);
+  }
+};
 
 const PaymentProcessingCenter = () => {
   const navigate = useNavigate();
@@ -208,7 +229,45 @@ const PaymentProcessingCenter = () => {
   };
 
   const handleExport = (config) => {
-    console.log('Export report with config:', config);
+    try {
+      // Get payments to export based on current filters
+      const paymentsToExport = sortedPayments?.length > 0 ? sortedPayments : payments;
+      
+      if (paymentsToExport?.length === 0) {
+        alert('No payment data to export');
+        return;
+      }
+
+      // Format data using exportUtils
+      const formattedData = exportUtils?.formatCampaignData(
+        paymentsToExport,
+        config?.includeFields || ['creator', 'campaign', 'amount', 'dueDate', 'status', 'reference', 'method']
+      );
+
+      // Generate filename with timestamp
+      const timestamp = new Date()?.toISOString()?.slice(0, 10);
+      const filename = `payment-report-${timestamp}`;
+
+      // Export based on format
+      switch (config?.format) {
+        case 'excel':
+          exportUtils?.exportToExcel(formattedData, filename);
+          break;
+        case 'csv':
+          exportUtils?.exportToCSV(formattedData, filename);
+          break;
+        case 'pdf':
+          exportUtils?.exportToPDF(formattedData, filename);
+          break;
+        default:
+          exportUtils?.exportToExcel(formattedData, filename);
+      }
+
+      alert(`Successfully exported ${paymentsToExport?.length} payment records!`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Failed to export report: ${error?.message}`);
+    }
   };
 
   useEffect(() => {
@@ -400,6 +459,7 @@ const PaymentProcessingCenter = () => {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         onExport={handleExport}
+        payments={sortedPayments}
       />
       <KeyboardShortcutsHelper />
     </div>

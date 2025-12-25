@@ -132,5 +132,89 @@ export const creatorService = {
       console.error('Error searching creators by Instagram links:', error);
       throw error;
     }
+  },
+
+  /**
+   * Create a new creator
+   * @param {Object} creatorData - Creator data (using exact database column names)
+   * @returns {Promise<Object>} Created creator object
+   */
+  async create(creatorData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.insert([creatorData])
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error creating creator:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update an existing creator
+   * @param {string} id - Creator ID
+   * @param {Object} updates - Fields to update (using exact database column names)
+   * @returns {Promise<Object>} Updated creator object
+   */
+  async update(id, updates) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update(updates)
+        ?.eq('id', id)
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error updating creator:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a creator
+   * @param {string} id - Creator ID
+   * @returns {Promise<void>}
+   */
+  async delete(id) {
+    try {
+      const { error } = await supabase
+        ?.from('creators')
+        ?.delete()
+        ?.eq('id', id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting creator:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Bulk delete creators
+   * @param {Array<string>} ids - Array of creator IDs
+   * @returns {Promise<void>}
+   */
+  async bulkDelete(ids) {
+    try {
+      const { error } = await supabase
+        ?.from('creators')
+        ?.delete()
+        ?.in('id', ids);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error bulk deleting creators:', error);
+      throw error;
+    }
   }
 };
