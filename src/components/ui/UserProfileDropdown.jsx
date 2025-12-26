@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
+import { useAuth } from '../../contexts/AuthContext';
 
 
 const UserProfileDropdown = () => {
+  const { signOut, userProfile, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const userRole = 'Super Admin';
-  const userName = 'John Anderson';
-  const userEmail = 'john.anderson@influencercrm.com';
+  const userRole = userProfile?.role || 'User';
+  const userName = userProfile?.full_name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,9 +34,12 @@ const UserProfileDropdown = () => {
     setIsOpen(!isOpen);
   };
 
-  const handleLogout = () => {
-    navigate('/login-and-authentication');
-    setIsOpen(false);
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (!error) {
+      navigate('/login-and-authentication');
+      setIsOpen(false);
+    }
   };
 
   const handleProfile = () => {
