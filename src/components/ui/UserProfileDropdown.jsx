@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
+import { useAuth } from '../../contexts/AuthContext';
 
 
 const UserProfileDropdown = () => {
@@ -8,9 +9,10 @@ const UserProfileDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const userRole = 'Super Admin';
-  const userName = 'John Anderson';
-  const userEmail = 'john.anderson@influencercrm.com';
+  const { user, userProfile } = useAuth();
+  const userRole = userProfile?.role || userProfile?.displayName || 'Super Admin';
+  const userName = userProfile?.fullName || user?.email || 'John Anderson';
+  const userEmail = user?.email || 'john.anderson@upgoalmedia.com';
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -33,7 +35,8 @@ const UserProfileDropdown = () => {
   };
 
   const handleLogout = () => {
-    navigate('/login-and-authentication');
+    // Use the logout route which clears Supabase session
+    navigate('/logout');
     setIsOpen(false);
   };
 

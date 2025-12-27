@@ -54,9 +54,9 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
       >
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            <Icon name="Zap" size={24} color="var(--color-primary)" />
-          </div>
-          <span className="sidebar-logo-text">InfluencerCRM</span>
+              <img src="/assets/images/upgoal-logo.svg" alt="Upgoal Media" className="w-8 h-6 object-contain" />
+            </div>
+            <span className="sidebar-logo-text">Upgoal Media</span>
         </div>
 
         <nav className="sidebar-nav" role="navigation" aria-label="Main navigation">

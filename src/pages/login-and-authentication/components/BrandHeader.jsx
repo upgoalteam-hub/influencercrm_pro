@@ -4,14 +4,14 @@ import Icon from '../../../components/AppIcon';
 const BrandHeader = () => {
   return (
     <div className="text-center mb-8">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg mb-4">
-        <Icon name="Zap" size={32} color="#FFFFFF" />
+      <div className="inline-flex items-center justify-center w-20 h-16 mb-4">
+        <img src="/assets/images/upgoal-logo.svg" alt="Upgoal Media" className="max-h-14 object-contain" />
       </div>
-      
+
       <h1 className="text-3xl font-bold text-foreground mb-2">
-        InfluencerCRM Pro
+        Upgoal Media
       </h1>
-      
+
       <p className="text-muted-foreground">
         Enterprise Influencer Relationship Management
       </p>

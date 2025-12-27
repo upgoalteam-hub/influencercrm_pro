@@ -13,30 +13,30 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-
-  const handleSubmit = (e) => {
-    e?.preventDefault();
-    onSubmit(formData);
-  const whitelistedDomains = ['influencercrm.com', 'marketing.influencercrm.com'];
+  const [validationError, setValidationError] = useState(null);
 
   const validateEmail = (email) => {
+    if (!email || email.trim() === '') {
+      return 'Email is required';
+    }
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex?.test(email)) {
       return 'Please enter a valid email address';
-    }
-    
-    const domain = email?.split('@')?.[1];
-    if (!whitelistedDomains?.includes(domain)) {
-      return 'Email domain not authorized. Please use your company email.';
     }
     
     return null;
   };
 
   const validatePassword = (password) => {
-    if (password?.length < 8) {
-      return 'Password must be at least 8 characters longand uppercase';
+    if (!password || password.trim() === '') {
+      return 'Password is required';
     }
+    
+    if (password?.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    
     return null;
   };
 
@@ -46,6 +46,33 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    // Clear validation error when user types
+    if (validationError) {
+      setValidationError(null);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e?.preventDefault();
+    
+    console.log('🔵 Form submitted:', { email: formData?.email, hasPassword: !!formData?.password });
+    
+    // Clear previous validation errors
+    setValidationError(null);
+    
+    // Basic validation
+    const emailError = validateEmail(formData?.email);
+    const passwordError = validatePassword(formData?.password);
+    
+    if (emailError || passwordError) {
+      const errorMsg = emailError || passwordError;
+      console.error('❌ Validation error:', errorMsg);
+      setValidationError(errorMsg);
+      return;
+    }
+    
+    console.log('✅ Validation passed, calling onSubmit');
+    onSubmit(formData);
   };
 
   const handleForgotPassword = () => {
@@ -55,13 +82,13 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
+      {(error || validationError) && (
         <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
           <div className="flex items-start gap-3">
             <Icon name="AlertCircle" size={20} color="var(--color-destructive)" className="flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-destructive mb-1">Authentication Error</p>
-              <p className="text-xs text-destructive/90 whitespace-pre-line">{error}</p>
+              <p className="text-xs text-destructive/90 whitespace-pre-line">{error || validationError}</p>
             </div>
           </div>
         </div>
@@ -73,7 +100,7 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
           type="email"
           name="email"
           id="email"
-          placeholder="your.name@influencercrm.com"
+          placeholder="your.email@example.com"
           value={formData?.email}
           onChange={handleChange}
           required
@@ -141,5 +168,5 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
     </form>
   );
 };
-}
+
 export default LoginForm;

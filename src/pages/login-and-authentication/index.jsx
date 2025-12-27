@@ -1,237 +1,221 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../../components/AppIcon';
-import BrandHeader from './components/BrandHeader';
-import LoginForm from './components/LoginForm';
-import FirebaseStatus from './components/FirebaseStatus';
-import SecurityFeatures from './components/SecurityFeatures';
-import SessionWarningModal from './components/SessionWarningModal';
+import { supabase } from '../../lib/supabase';
 
 const LoginAndAuthentication = () => {
   const navigate = useNavigate();
-  const { signIn, user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showSessionWarning, setShowSessionWarning] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockoutTimer, setLockoutTimer] = useState(0);
 
-  // Redirect if already authenticated
+  // If user already has a session, redirect to dashboard
   useEffect(() => {
-    if (user) {
-      navigate('/executive-dashboard');
-    }
-  }, [user, navigate]);
+    let mounted = true;
 
-  useEffect(() => {
-    if (isLocked && lockoutTimer > 0) {
-      const timer = setInterval(() => {
-        setLockoutTimer(prev => {
-          if (prev <= 1) {
-            setIsLocked(false);
-            setFailedAttempts(0);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
 
-      return () => clearInterval(timer);
-    }
-  }, [isLocked, lockoutTimer]);
-
-  const handleLogin = async (formData) => {
-    if (isLocked) {
-      setError(`Account temporarily locked. Please try again in ${lockoutTimer} seconds.`);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Use actual Supabase authentication
-      const { data, error: signInError } = await signIn(formData?.email, formData?.password);
-
-      if (signInError) {
-        const newFailedAttempts = failedAttempts + 1;
-        setFailedAttempts(newFailedAttempts);
-
-        if (newFailedAttempts >= 3) {
-          setIsLocked(true);
-          setLockoutTimer(300);
-          setError('Too many failed attempts. Account locked for 5 minutes.');
-        } else {
-          // Format error message for better readability
-          const errorMsg = signInError?.message || 'Invalid email or password';
-          const attemptsRemaining = 3 - newFailedAttempts;
-          setError(`${errorMsg}\n\n⚠️ ${attemptsRemaining} ${attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before account lockout.`);
+        if (mounted && session?.user) {
+          navigate('/executive-dashboard');
         }
-      } else {
-        // Store user info
-        if (formData?.rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
-        }
-        
-        setFailedAttempts(0);
-        
-        // Navigate to dashboard - AuthContext will handle session
+      } catch (err) {
+        console.error('Error checking session', err);
+      }
+    };
+
+    checkSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
         navigate('/executive-dashboard');
       }
+    });
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe?.();
+    };
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
+
+      if (authError) {
+        setError(authError.message || 'Failed to sign in');
+        setLoading(false);
+        return;
+      }
+
+      if (remember) {
+        // persistSession is true in client config; optionally keep flag
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberMe');
+      }
+
+      // On success, redirect
+      navigate('/executive-dashboard');
     } catch (err) {
-      setError(err?.message || 'An unexpected error occurred. Please try again.');
+      console.error('Sign in error', err);
+      setError(err?.message || 'An unexpected error occurred');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  const handleExtendSession = () => {
-    localStorage.setItem('loginTime', new Date()?.toISOString());
-    setShowSessionWarning(false);
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    setShowSessionWarning(false);
-    navigate('/login-and-authentication');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
+        {/* Left panel */}
         <div className="hidden lg:block">
           <div className="space-y-8">
             <div>
-              <h2 className="text-4xl font-bold text-foreground mb-4">
-                Welcome Back to<br />InfluencerCRM Pro
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Your centralized platform for managing creator relationships, campaigns, and payments with enterprise-grade security.
-              </p>
+              <h2 className="text-4xl font-bold text-foreground mb-4">Welcome Back to<br />Upgoal Media</h2>
+              <p className="text-lg text-muted-foreground">Your centralized platform for managing creator relationships, campaigns, and payments with enterprise-grade security.</p>
             </div>
 
-            <SecurityFeatures />
-
-            <div className="p-6 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="flex items-start gap-3 mb-4">
-                <Icon name="Sparkles" size={24} color="var(--color-primary)" />
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    What's New in v2.0
-                  </h3>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <Icon name="Check" size={16} color="var(--color-success)" className="flex-shrink-0 mt-0.5" />
-                      <span>Advanced Instagram link bulk processing</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Icon name="Check" size={16} color="var(--color-success)" className="flex-shrink-0 mt-0.5" />
-                      <span>Real-time payment tracking with delay alerts</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Icon name="Check" size={16} color="var(--color-success)" className="flex-shrink-0 mt-0.5" />
-                      <span>Enhanced campaign performance analytics</span>
-                    </li>
-                  </ul>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 bg-card border border-border rounded-lg">
+                <div className="flex items-start gap-3 mb-2">
+                  <Icon name="Shield" size={20} color="var(--color-primary)" />
+                  <h4 className="font-semibold">Enterprise Security</h4>
                 </div>
+                <p className="text-sm text-muted-foreground">Bank-level encryption for all data</p>
               </div>
-            </div>
 
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Icon name="Users" size={16} />
-                <span>1,200+ Creators</span>
+              <div className="p-6 bg-card border border-border rounded-lg">
+                <div className="flex items-start gap-3 mb-2">
+                  <Icon name="Lock" size={20} color="var(--color-primary)" />
+                  <h4 className="font-semibold">Secure Access</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">Team-only authentication system</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Icon name="Megaphone" size={16} />
-                <span>350+ Campaigns</span>
+
+              <div className="p-6 bg-card border border-border rounded-lg">
+                <div className="flex items-start gap-3 mb-2">
+                  <Icon name="Clock" size={20} color="var(--color-primary)" />
+                  <h4 className="font-semibold">Session Management</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">Auto-logout after 8 hours inactivity</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Icon name="TrendingUp" size={16} />
-                <span>₹2.5Cr+ Processed</span>
+
+              <div className="p-6 bg-card border border-border rounded-lg">
+                <div className="flex items-start gap-3 mb-2">
+                  <Icon name="DeviceMobile" size={20} color="var(--color-primary)" />
+                  <h4 className="font-semibold">Device Registration</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">Trusted device verification</p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Right panel (form) */}
         <div className="w-full max-w-md mx-auto">
           <div className="bg-card border border-border rounded-2xl shadow-lg-custom p-8">
-            <BrandHeader />
-
-            <div className="mb-6">
-              <FirebaseStatus />
+            <div className="flex flex-col items-start mb-6">
+              <h1 className="text-2xl font-bold">Upgoal Media</h1>
+              <p className="text-sm text-muted-foreground">Enterprise Influencer Relationship Management</p>
+              <div className="flex gap-2 mt-3">
+                <span className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-100">Secure Login</span>
+                <span className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100">Team Access</span>
+              </div>
             </div>
 
-            <LoginForm
-              onSubmit={handleLogin}
-              isLoading={isLoading}
-              error={error}
-            />
-
-            <div className="mt-8 pt-6 border-t border-border">
-              <div className="bg-muted/50 rounded-lg p-4">
-                <p className="text-xs font-medium text-foreground mb-3 flex items-center gap-2">
-                  <Icon name="Key" size={14} />
-                  Demo Credentials for Testing
-                </p>
-                <div className="space-y-3 text-xs">
-                  <div className="bg-card border border-border rounded p-3">
-                    <div className="flex items-start gap-2 mb-2">
-                      <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="font-semibold text-foreground mb-1">Super Admin</p>
-                        <div className="space-y-1 text-muted-foreground">
-                          <p><span className="font-medium">Email:</span> admin@crm.com</p>
-                          <p><span className="font-medium">Password:</span> Admin@123456</p>
-                        </div>
-                      </div>
-                    </div>
+            <div className="mb-4">
+              <div className="p-4 bg-card border border-border rounded">
+                <div className="flex items-center gap-3">
+                  <Icon name="CheckCircle" size={18} color="var(--color-success)" />
+                  <div>
+                    <div className="text-sm font-medium">System Online</div>
+                    <div className="text-xs text-muted-foreground">Connected • 1014ms latency</div>
                   </div>
-                  <div className="bg-card border border-border rounded p-3">
-                    <div className="flex items-start gap-2 mb-2">
-                      <Icon name="User" size={12} className="flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="font-semibold text-foreground mb-1">Manager</p>
-                        <div className="space-y-1 text-muted-foreground">
-                          <p><span className="font-medium">Email:</span> manager@crm.com</p>
-                          <p><span className="font-medium">Password:</span> Manager@123456</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 p-2 bg-warning/10 border border-warning/30 rounded">
-                  <p className="text-xs text-warning flex items-start gap-2">
-                    <Icon name="AlertTriangle" size={12} className="flex-shrink-0 mt-0.5" />
-                    <span><strong>Setup Required:</strong> Demo accounts must be manually created in Supabase Dashboard before login will work. See migration file <code className="px-1 py-0.5 bg-background rounded text-[10px]">20251225095026_fix_auth_integration.sql</code> for detailed setup instructions.</span>
-                  </p>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              © {new Date()?.getFullYear()} InfluencerCRM Pro. All rights reserved.
-            </p>
-            <div className="flex items-center justify-center gap-4 mt-2">
-              <a href="#" className="text-xs text-primary hover:underline">Privacy Policy</a>
-              <span className="text-xs text-muted-foreground">•</span>
-              <a href="#" className="text-xs text-primary hover:underline">Terms of Service</a>
-              <span className="text-xs text-muted-foreground">•</span>
-              <a href="#" className="text-xs text-primary hover:underline">Support</a>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <label className="text-sm font-medium">Email Address *</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full mt-2 mb-4 p-3 border border-border rounded bg-muted/10"
+                placeholder="you@company.com"
+              />
+
+              <label className="text-sm font-medium">Password *</label>
+              <div className="relative mt-2 mb-4">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full p-3 border border-border rounded pr-10 bg-muted/10"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={18} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mb-6">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="form-checkbox" />
+                  <span>Remember me</span>
+                </label>
+                <a href="#" className="text-sm text-primary hover:underline">Forgot password?</a>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-2 bg-primary text-white px-4 py-3 rounded hover:opacity-95 disabled:opacity-60"
+                disabled={loading}
+              >
+                {loading ? (
+                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                ) : null}
+                <span>Sign In</span>
+              </button>
+            </form>
+
+            <div className="mt-6 text-xs text-muted-foreground">
+              © {new Date().getFullYear()} Upgoal Media. All rights reserved.
             </div>
           </div>
         </div>
       </div>
-      <SessionWarningModal
-        isOpen={showSessionWarning}
-        onExtend={handleExtendSession}
-        onLogout={handleLogout}
-        remainingTime={300}
-      />
     </div>
   );
 };

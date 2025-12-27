@@ -1,7 +1,9 @@
 import React from "react";
-import { BrowserRouter, Routes as RouterRoutes, Route } from "react-router-dom";
+import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useNavigate } from "react-router-dom";
 import ScrollToTop from "components/ScrollToTop";
 import ErrorBoundary from "components/ErrorBoundary";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from './contexts/AuthContext';
 import NotFound from "pages/NotFound";
 import PaymentProcessingCenter from './pages/payment-processing-center';
 import ExecutiveDashboard from './pages/executive-dashboard';
@@ -15,26 +17,83 @@ import SystemSettingsUserManagement from './pages/system-settings-user-managemen
 
 const Routes = () => {
   return (
-    <BrowserRouter>
-      <ErrorBoundary>
-      <ScrollToTop />
-      <RouterRoutes>
-        {/* Define your route here */}
-        <Route path="/" element={<LoginAndAuthentication />} />
-        <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
-        <Route path="/brand-contact-management" element={<BrandContactManagement />} />
-        <Route path="/payment-processing-center" element={<PaymentProcessingCenter />} />
-        <Route path="/login-and-authentication" element={<LoginAndAuthentication />} />
-        <Route path="/creator-database-management" element={<CreatorDatabaseManagement />} />
-        <Route path="/creator-profile-details" element={<CreatorProfileDetails />} />
-        <Route path="/campaign-management-center" element={<CampaignManagementCenter />} />
-        <Route path="/bulk-instagram-processor" element={<BulkInstagramProcessor />} />
-        <Route path="/system-settings-user-management" element={<SystemSettingsUserManagement />} />
-        <Route path="*" element={<NotFound />} />
-      </RouterRoutes>
-      </ErrorBoundary>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <ErrorBoundary>
+          <ScrollToTop />
+          <RouterRoutes>
+            {/* Define your route here */}
+            <Route path="/" element={<LoginAndAuthentication />} />
+            {/* Protect the executive dashboard so unauthenticated users are redirected to login */}
+            <Route
+              path="/executive-dashboard"
+              element={
+                <RequireAuth>
+                  <ExecutiveDashboard />
+                </RequireAuth>
+              }
+            />
+            <Route path="/brand-contact-management" element={<RequireAuth><BrandContactManagement /></RequireAuth>} />
+            <Route path="/payment-processing-center" element={<RequireAuth><PaymentProcessingCenter /></RequireAuth>} />
+            <Route path="/login-and-authentication" element={<LoginAndAuthentication />} />
+            <Route path="/login" element={<LoginAndAuthentication />} />
+            <Route path="/creator-database-management" element={<RequireAuth><CreatorDatabaseManagement /></RequireAuth>} />
+            <Route path="/creator-profile-details/:id" element={<RequireAuth><CreatorProfileDetails /></RequireAuth>} />
+            <Route path="/campaign-management-center" element={<RequireAuth><CampaignManagementCenter /></RequireAuth>} />
+            <Route path="/bulk-instagram-processor" element={<RequireAuth><BulkInstagramProcessor /></RequireAuth>} />
+            <Route path="/system-settings-user-management" element={<RequireAuth><SystemSettingsUserManagement /></RequireAuth>} />
+            <Route path="/logout" element={<LogoutRoute />} />
+            <Route path="*" element={<NotFound />} />
+          </RouterRoutes>
+        </ErrorBoundary>
+      </BrowserRouter>
+    </AuthProvider>
   );
 };
+
+// Inline auth guard to avoid creating new files
+function RequireAuth({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  // While auth state is loading, render a centered spinner to avoid blank screen
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
+// Simple logout route useful for testing sessions
+export function LogoutRoute() {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        await signOut();
+      } catch (err) {
+        console.error('Error signing out', err);
+      } finally {
+        // clear common Supabase localStorage keys and app flags
+        try { localStorage.removeItem('supabase.auth.token'); } catch(e){}
+        try { localStorage.removeItem('supabase.auth'); } catch(e){}
+        try { localStorage.removeItem('rememberMe'); } catch(e){}
+        // navigate back to login page
+        navigate('/login');
+      }
+    })();
+  }, [signOut, navigate]);
+
+  return null;
+}
 
 export default Routes;
