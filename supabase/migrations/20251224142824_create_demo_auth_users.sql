@@ -42,7 +42,7 @@
 
 -- Update Super Admin role
 UPDATE public.users
-SET role_id = (SELECT id FROM user_roles WHERE role_name = 'super_admin')
+SET role_id = (SELECT id FROM user_roles WHERE role_name = 'manager')
 WHERE email = 'admin@crm.com';
 
 -- Update Manager role

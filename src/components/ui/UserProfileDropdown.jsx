@@ -101,6 +101,24 @@ const UserProfileDropdown = () => {
               <Icon name="User" size={18} />
               <span>My Profile</span>
             </button>
+            {userRole === 'Super Admin' && (
+              <button
+                onClick={() => { navigate('/system-settings-user-management'); setIsOpen(false); }}
+                className="dropdown-item"
+              >
+                <Icon name="Shield" size={18} />
+                <span>Admin Console</span>
+              </button>
+            )}
+            {(userRole === 'Super Admin' || userRole === 'Manager') && (
+              <button
+                onClick={() => { navigate('/campaign-management-center'); setIsOpen(false); }}
+                className="dropdown-item"
+              >
+                <Icon name="FolderKanban" size={18} />
+                <span>Manage Campaigns</span>
+              </button>
+            )}
             <button
               onClick={handleSettings}
               className="dropdown-item"

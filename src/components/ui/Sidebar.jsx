@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
+import { useAuth } from '../../contexts/AuthContext';
 import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
+  const { userProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  const userRole = userProfile?.role || 'User'; // Default to 'User' if role is undefined
+
   const navigation = [
-    { name: 'Executive Dashboard', href: '/', icon: Home },
-    { name: 'Creator Database', href: '/creator-database-management', icon: Database },
-    { name: 'Campaign Management', href: '/campaign-management-center', icon: FolderKanban },
-    { name: 'Payment Processing', href: '/payment-processing-center', icon: DollarSign },
-    { name: 'Brand & Contact', href: '/brand-contact-management', icon: Users },
-    { name: 'Bulk Instagram Processor', href: '/bulk-instagram-processor', icon: LinkIcon },
-    { name: 'System Settings', href: '/system-settings-user-management', icon: Settings },
-  ];
+    { name: 'Executive Dashboard', href: '/', icon: Home, roles: ['Super Admin', 'Manager', 'User'] },
+    { name: 'Creator Database', href: '/creator-database-management', icon: Database, roles: ['Super Admin', 'Manager', 'User'] },
+    { name: 'Campaign Management', href: '/campaign-management-center', icon: FolderKanban, roles: ['Super Admin', 'Manager', 'User'] },
+    { name: 'Payment Processing', href: '/payment-processing-center', icon: DollarSign, roles: ['Super Admin', 'Manager', 'User'] },
+    { name: 'Brand & Contact', href: '/brand-contact-management', icon: Users, roles: ['Super Admin', 'Manager', 'User'] },
+    { name: 'Bulk Instagram Processor', href: '/bulk-instagram-processor', icon: LinkIcon, roles: ['Super Admin', 'Manager', 'User'] },
+    { name: 'System Settings', href: '/system-settings-user-management', icon: Settings, roles: ['Super Admin', 'Manager'] },
+  ].filter(item => item.roles.includes(userRole));
 
   const handleNavigation = (path) => {
     navigate(path);
