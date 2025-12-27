@@ -17,6 +17,27 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
   const handleSubmit = (e) => {
     e?.preventDefault();
     onSubmit(formData);
+  const whitelistedDomains = ['influencercrm.com', 'marketing.influencercrm.com'];
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex?.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    
+    const domain = email?.split('@')?.[1];
+    if (!whitelistedDomains?.includes(domain)) {
+      return 'Email domain not authorized. Please use your company email.';
+    }
+    
+    return null;
+  };
+
+  const validatePassword = (password) => {
+    if (password?.length < 8) {
+      return 'Password must be at least 8 characters longand uppercase';
+    }
+    return null;
   };
 
   const handleChange = (e) => {
@@ -120,5 +141,5 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
     </form>
   );
 };
-
+}
 export default LoginForm;
