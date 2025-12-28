@@ -56,7 +56,7 @@ export default function CreatorDatabaseManagement() {
         city: filters?.city || [],
         state: filters?.state || [],
         followers_tier: filters?.followers || [],
-        sheet_source: filters?.sheet_source || []
+        sheet_source: filters?.category || [] // Map category filter to sheet_source
       };
 
       const result = await creatorService?.getPaginated({
