@@ -6,14 +6,15 @@ import { creatorService } from '../../services/creatorService';
 
 const BulkInstagramProcessor = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [instagramLinks, setInstagramLinks] = useState('');
+  const [inputText, setInputText] = useState('');
+  const [searchType, setSearchType] = useState('link'); // 'link' or 'username'
   const [searchResults, setSearchResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSearch = async () => {
-    if (!instagramLinks?.trim()) {
-      setError('Please paste at least one Instagram link');
+    if (!inputText?.trim()) {
+      setError(`Please enter at least one ${searchType === 'link' ? 'Instagram link' : 'username'}`);
       return;
     }
 
@@ -23,15 +24,20 @@ const BulkInstagramProcessor = () => {
 
     try {
       // Split by new lines and filter out empty lines
-      const linksArray = instagramLinks?.split('\n')?.map(link => link?.trim())?.filter(link => link?.length > 0);
+      const itemsArray = inputText?.split('\n')?.map(item => item?.trim())?.filter(item => item?.length > 0);
 
-      if (linksArray?.length === 0) {
-        setError('No valid Instagram links found');
+      if (itemsArray?.length === 0) {
+        setError(`No valid ${searchType === 'link' ? 'Instagram links' : 'usernames'} found`);
         setLoading(false);
         return;
       }
 
-      const results = await creatorService?.searchByInstagramLinks(linksArray);
+      let results;
+      if (searchType === 'link') {
+        results = await creatorService?.searchByInstagramLinks(itemsArray);
+      } else {
+        results = await creatorService?.searchByUsernames(itemsArray);
+      }
       setSearchResults(results);
     } catch (err) {
       setError(err?.message || 'Failed to search creators');
@@ -72,7 +78,7 @@ const BulkInstagramProcessor = () => {
   };
 
   const handleClear = () => {
-    setInstagramLinks('');
+    setInputText('');
     setSearchResults(null);
     setError('');
   };
@@ -97,26 +103,55 @@ const BulkInstagramProcessor = () => {
 
           {/* Input Section */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="mb-6 flex gap-4">
+              <button
+                onClick={() => setSearchType('link')}
+                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                  searchType === 'link' 
+                    ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                    : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                }`}
+              >
+                <Link2 className="w-5 h-5 mx-auto mb-1" />
+                <span className="text-sm font-semibold">Bulk Link Search</span>
+              </button>
+              <button
+                onClick={() => setSearchType('username')}
+                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                  searchType === 'username' 
+                    ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                    : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                }`}
+              >
+                <Search className="w-5 h-5 mx-auto mb-1" />
+                <span className="text-sm font-semibold">Bulk Username Search</span>
+              </button>
+            </div>
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Instagram Links (One per line)
+                {searchType === 'link' ? 'Instagram Links' : 'Usernames'} (One per line)
               </label>
               <textarea
-                value={instagramLinks}
-                onChange={(e) => setInstagramLinks(e?.target?.value)}
-                placeholder="https://www.instagram.com/username1/reels/&#10;https://www.instagram.com/username2/&#10;https://www.instagram.com/username3/reels/"
+                value={inputText}
+                onChange={(e) => setInputText(e?.target?.value)}
+                placeholder={
+                  searchType === 'link' 
+                    ? "https://www.instagram.com/username1/\nhttps://www.instagram.com/username2/"
+                    : "username1\nusername2\n@username3"
+                }
                 className="w-full h-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
                 disabled={loading}
               />
               <p className="mt-2 text-xs text-gray-500">
-                {instagramLinks?.split('\n')?.filter(line => line?.trim())?.length} links entered
+                {inputText?.split('\n')?.filter(line => line?.trim())?.length} items entered
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={handleSearch}
-                disabled={loading || !instagramLinks?.trim()}
+                disabled={loading || !inputText?.trim()}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Search className="w-4 h-4" />

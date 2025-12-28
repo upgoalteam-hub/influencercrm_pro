@@ -193,6 +193,45 @@ export const creatorService = {
   },
 
   /**
+   * Search creators by multiple usernames (bulk search)
+   * @param {Array<string>} usernames - Array of usernames to search
+   * @returns {Promise<Object>} Object with found creators and not found usernames
+   */
+  async searchByUsernames(usernames) {
+    try {
+      if (!usernames || usernames?.length === 0) {
+        return { found: [], notFound: [] };
+      }
+
+      // Clean usernames (remove @ if present)
+      const cleanedUsernames = usernames?.map(u => u?.trim()?.replace(/^@/, ''));
+
+      // Search for creators with matching usernames
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('*')
+        ?.in('username', cleanedUsernames)
+        ?.order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const foundCreators = data || [];
+      
+      // Determine which usernames were not found
+      const foundUsernames = foundCreators?.map(creator => creator?.username?.trim());
+      const notFoundUsernames = cleanedUsernames?.filter(u => !foundUsernames?.includes(u));
+
+      return {
+        found: foundCreators,
+        notFound: notFoundUsernames
+      };
+    } catch (error) {
+      console.error('Error searching creators by usernames:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Create a new creator
    * @param {Object} creatorData - Creator data (using exact database column names)
    * @returns {Promise<Object>} Created creator object
