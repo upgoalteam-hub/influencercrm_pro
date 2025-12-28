@@ -5,18 +5,14 @@ import { useAuth } from '../../contexts/AuthContext';
 
 
 const UserProfileDropdown = () => {
-  // const { signOut, userProfile, user } = useAuth();
+  const { signOut, userProfile, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const { user, userProfile } = useAuth();
   const userRole = userProfile?.role || userProfile?.displayName || 'Super Admin';
-  const userName = userProfile?.fullName || user?.email || 'John Anderson';
-  const userEmail = user?.email || 'john.anderson@upgoalmedia.com';
-  // const userRole = userProfile?.role || 'User';
-  // const userName = userProfile?.full_name || user?.email?.split('@')[0] || 'User';
-  // const userEmail = user?.email || '';
+  const userName = userProfile?.full_name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -38,10 +34,6 @@ const UserProfileDropdown = () => {
     setIsOpen(!isOpen);
   };
 
-  const handleLogout = () => {
-    // Use the logout route which clears Supabase session
-    navigate('/logout');
-    setIsOpen(false);
   const handleLogout = async () => {
     const { error } = await signOut();
     if (!error) {
@@ -109,6 +101,24 @@ const UserProfileDropdown = () => {
               <Icon name="User" size={18} />
               <span>My Profile</span>
             </button>
+            {userRole === 'Super Admin' && (
+              <button
+                onClick={() => { navigate('/system-settings-user-management'); setIsOpen(false); }}
+                className="dropdown-item"
+              >
+                <Icon name="Shield" size={18} />
+                <span>Admin Console</span>
+              </button>
+            )}
+            {(userRole === 'Super Admin' || userRole === 'Manager') && (
+              <button
+                onClick={() => { navigate('/campaign-management-center'); setIsOpen(false); }}
+                className="dropdown-item"
+              >
+                <Icon name="FolderKanban" size={18} />
+                <span>Manage Campaigns</span>
+              </button>
+            )}
             <button
               onClick={handleSettings}
               className="dropdown-item"
@@ -134,6 +144,5 @@ const UserProfileDropdown = () => {
     </div>
   );
 };
-}
 
 export default UserProfileDropdown;
