@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
 import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -7,6 +7,28 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // Keyboard navigation support
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape' && isMobileOpen) {
+      setIsMobileOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isMobileOpen]);
 
   const navigation = [
     { name: 'Executive Dashboard', href: '/', icon: Home },

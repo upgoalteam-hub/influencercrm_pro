@@ -12,9 +12,9 @@ import SavedFiltersDrawer from './components/SavedFiltersDrawer';
 import ExportDialog from './components/ExportDialog';
 import Select from '../../components/ui/Select';
 import AddCreatorModal from './components/AddCreatorModal';
+import Pagination from '../../components/ui/Pagination';
 import { creatorService } from '../../services/creatorService';
 import { realtimeService } from '../../services/realtimeService';
-
 
 export default function CreatorDatabaseManagement() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -397,59 +397,14 @@ export default function CreatorDatabaseManagement() {
             </div>
 
             <div className="bg-card border-t border-border px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                  {Math.min(currentPage * itemsPerPage, totalCreatorsCount)} of{' '}
-                  {totalCreatorsCount} creators
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1 || loading}
-                    iconName="ChevronLeft"
-                    iconSize={16}
-                  />
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => !loading && setCurrentPage(pageNum)}
-                          disabled={loading}
-                          className={`w-8 h-8 rounded-md text-sm font-medium transition-colors duration-200 ${
-                            currentPage === pageNum
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-muted text-foreground disabled:opacity-50'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages || loading}
-                    iconName="ChevronRight"
-                    iconSize={16}
-                  />
-                </div>
-              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalCreatorsCount}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                loading={loading}
+              />
             </div>
           </div>
         </div>
