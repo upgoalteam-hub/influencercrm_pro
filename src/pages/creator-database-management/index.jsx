@@ -8,7 +8,7 @@ import Input from '../../components/ui/Input';
 import FilterSidebar from './components/FilterSidebar';
 import CreatorTable from './components/CreatorTable';
 import BulkActionsToolbar from './components/BulkActionsToolbar';
-import SavedFiltersPanel from './components/SavedFiltersPanel';
+import SavedFiltersDrawer from './components/SavedFiltersDrawer';
 import ExportDialog from './components/ExportDialog';
 import Select from '../../components/ui/Select';
 import AddCreatorModal from './components/AddCreatorModal';
@@ -329,6 +329,7 @@ export default function CreatorDatabaseManagement() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  <SavedFiltersDrawer onApplyFilter={handleApplySavedFilter} currentFilters={filters} />
                   <Button
                     variant="outline"
                     onClick={() => setShowExportDialog(true)}
@@ -450,10 +451,6 @@ export default function CreatorDatabaseManagement() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="w-80 flex-shrink-0 overflow-y-auto custom-scrollbar p-4 bg-muted/30 border-l border-border">
-            <SavedFiltersPanel onApplyFilter={handleApplySavedFilter} currentFilters={filters} />
           </div>
         </div>
       </main>
