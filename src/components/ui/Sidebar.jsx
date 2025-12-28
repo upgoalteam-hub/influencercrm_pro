@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
-import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings } from 'lucide-react';
+import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const navigate = useNavigate();
@@ -54,9 +54,17 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
       >
         <div className="sidebar-header">
           <div className="sidebar-logo">
-              <img src="/assets/images/upgoal-logo.svg" alt="Upgoal Media" className="w-8 h-6 object-contain" />
-            </div>
-            <span className="sidebar-logo-text">Upgoal Media</span>
+            <img src="/assets/images/upgoal-logo.svg" alt="Upgoal Media" className="w-8 h-6 object-contain" />
+          </div>
+          <span className="sidebar-logo-text">Upgoal Media</span>
+          <button
+            onClick={onToggleCollapse}
+            className="sidebar-toggle-btn"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
         <nav className="sidebar-nav" role="navigation" aria-label="Main navigation">
@@ -75,30 +83,6 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
           ))}
         </nav>
 
-        {!isCollapsed && (
-          <div className="absolute bottom-4 left-0 right-0 px-3">
-            <button
-              onClick={onToggleCollapse}
-              className="sidebar-nav-item w-full"
-              aria-label="Collapse sidebar"
-            >
-              <Icon name="ChevronsLeft" size={20} />
-              <span className="sidebar-nav-item-text">Collapse</span>
-            </button>
-          </div>
-        )}
-
-        {isCollapsed && (
-          <div className="absolute bottom-4 left-0 right-0 px-3">
-            <button
-              onClick={onToggleCollapse}
-              className="sidebar-nav-item w-full justify-center"
-              aria-label="Expand sidebar"
-            >
-              <Icon name="ChevronsRight" size={20} />
-            </button>
-          </div>
-        )}
       </aside>
     </>
   );
