@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/ui/Sidebar';
 import Header from '../../components/ui/Header';
 import Icon from '../../components/AppIcon';
@@ -28,29 +29,48 @@ export default function CreatorDatabaseManagement() {
     status: []
   });
   const [selectedCreators, setSelectedCreators] = useState([]);
-  const [sortConfig, setSortConfig] = useState({ column: 'name', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ column: 'created_at', direction: 'desc' });
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [showAddCreatorModal, setShowAddCreatorModal] = useState(false);
-  const userRole = 'Super Admin';
+  const { userProfile } = useAuth();
+  const userRole = userProfile?.role || 'Super Admin';
 
-  // Replace mock data with Supabase state
-  const [allCreators, setAllCreators] = useState([]);
-  const [filteredCreators, setFilteredCreators] = useState([]);
+  // Updated state - no longer storing all creators
+  const [creators, setCreators] = useState([]);
+  const [totalCreatorsCount, setTotalCreatorsCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Add this block - Define fetchCreators function before it's used
+  // Fetch paginated creators with server-side filtering
   const fetchCreators = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await creatorService?.getAll();
       
-      // Use exact database column names (no transformation)
-      const transformedData = data?.map(creator => ({
-        id: creator?.id,
+      // Convert filters to match API format
+      const apiFilters = {
+        city: filters?.city || [],
+        state: filters?.state || [],
+        followers_tier: filters?.followers || [],
+        sheet_source: filters?.sheet_source || []
+      };
+
+      const result = await creatorService?.getPaginated({
+        page: currentPage,
+        pageSize: itemsPerPage,
+        searchQuery: searchQuery || '',
+        filters: apiFilters,
+        sortColumn: sortConfig?.column || 'created_at',
+        sortDirection: sortConfig?.direction || 'desc'
+      });
+
+      // Transform data for display - ensure all fields are present
+      const transformedData = (result?.data || []).map(creator => ({
+        id: creator?.id || `temp-${Date.now()}-${Math.random()}`,
         sr_no: creator?.sr_no || 'N/A',
         name: creator?.name || 'N/A',
         instagram_link: creator?.instagram_link || 'N/A',
@@ -64,89 +84,83 @@ export default function CreatorDatabaseManagement() {
         sheet_source: creator?.sheet_source || 'N/A'
       }));
 
-      setAllCreators(transformedData);
-      setFilteredCreators(transformedData);
+      // Only update state if data is valid
+      setCreators(transformedData);
+      setTotalCreatorsCount(result?.total || 0);
+      setTotalPages(result?.totalPages || 0);
+      setIsInitialLoad(false);
     } catch (err) {
       console.error('Error fetching creators:', err);
       setError(err?.message || 'Failed to load creators from database');
+      setCreators([]); // Ensure empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  // Load creators and setup real-time subscription
-  useEffect(() => {
-    fetchCreators(); // Changed from loadCreators to fetchCreators
+  // Fetch total count separately (fast query)
+  const fetchTotalCount = async () => {
+    try {
+      const count = await creatorService?.getCount();
+      setTotalCreatorsCount(count || 0);
+    } catch (err) {
+      console.error('Error fetching total count:', err);
+    }
+  };
 
-    // Subscribe to real-time changes
+  // Load initial data
+  useEffect(() => {
+    // Fetch total count immediately (fast)
+    fetchTotalCount();
+    // Then fetch first page
+    fetchCreators();
+  }, []);
+
+  // Refetch when pagination, filters, search, or sort changes
+  useEffect(() => {
+    if (!isInitialLoad) {
+      setCurrentPage(1); // Reset to first page when filters change
+    }
+  }, [filters, searchQuery, sortConfig, itemsPerPage]);
+
+  useEffect(() => {
+    fetchCreators();
+  }, [currentPage, itemsPerPage, filters, searchQuery, sortConfig]);
+
+  // Real-time subscription for updates (only for current page)
+  useEffect(() => {
     const subscription = realtimeService?.subscribeToCreators(
       (newCreator) => {
-        // Handle INSERT
-        setAllCreators((prev) => [newCreator, ...prev]); // Changed from setCreators to setAllCreators
+        // Only refresh if we're on page 1
+        if (currentPage === 1) {
+          fetchCreators();
+        } else {
+          // Just update count
+          fetchTotalCount();
+        }
       },
       (updatedCreator) => {
-        // Handle UPDATE
-        setAllCreators((prev) =>
-          prev?.map((creator) =>
-            creator?.id === updatedCreator?.id ? updatedCreator : creator
-          )
-        );
+        // Refresh current page if updated creator is visible
+        if (creators?.some(c => c?.id === updatedCreator?.id)) {
+          fetchCreators();
+        }
       },
       (deletedId) => {
-        // Handle DELETE
-        setAllCreators((prev) => prev?.filter((creator) => creator?.id !== deletedId)); // Changed from setCreators to setAllCreators
+        // Refresh if deleted creator was visible
+        if (creators?.some(c => c?.id === deletedId)) {
+          fetchCreators();
+          fetchTotalCount();
+        }
       }
     );
 
-    // Cleanup subscription on unmount
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [currentPage, creators]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [filters, searchQuery, sortConfig, allCreators]);
-
-  const applyFilters = () => {
-    let result = [...allCreators];
-
-    if (searchQuery) {
-      result = result?.filter((creator) =>
-        creator?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
-        creator?.username?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
-        creator?.email?.toLowerCase()?.includes(searchQuery?.toLowerCase())
-      );
-    }
-
-    Object.entries(filters)?.forEach(([key, values]) => {
-      if (values?.length > 0) {
-        result = result?.filter((creator) => {
-          if (key === 'city') {
-            return values?.some((v) => creator?.city?.toLowerCase()?.includes(v?.toLowerCase()));
-          } else if (key === 'state') {
-            return values?.some((v) => creator?.state?.toLowerCase()?.includes(v?.toLowerCase()));
-          } else if (key === 'followers') {
-            return values?.some((tier) => creator?.followers_tier?.toLowerCase()?.includes(tier?.toLowerCase()));
-          }
-          return true;
-        });
-      }
-    });
-
-    if (sortConfig?.column) {
-      result?.sort((a, b) => {
-        let aValue = a?.[sortConfig?.column];
-        let bValue = b?.[sortConfig?.column];
-
-        if (aValue < bValue) return sortConfig?.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig?.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    setFilteredCreators(result);
-  };
+  // Remove client-side filtering - now handled server-side
+  // Remove applyFilters function
 
   const handleFilterChange = (filterType, values) => {
     if (filterType === 'clearAll') {
@@ -185,19 +199,36 @@ export default function CreatorDatabaseManagement() {
   };
 
   const handleCreatorAdded = (newCreator) => {
-    // Refresh creators list
+    // Refresh first page
+    setCurrentPage(1);
     fetchCreators();
+    fetchTotalCount();
   };
 
-  const paginatedCreators = filteredCreators?.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Debounced search handler
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
 
-  const totalPages = Math.ceil(filteredCreators?.length / itemsPerPage);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  // Show loading state
-  if (loading) {
+  useEffect(() => {
+    if (debouncedSearchQuery !== searchQuery) {
+      // This will trigger fetchCreators via the useEffect above
+    }
+  }, [debouncedSearchQuery]);
+
+  // Update search handler
+  const handleSearchChange = (e) => {
+    setSearchQuery(e?.target?.value);
+  };
+
+  // Show skeleton loading instead of blocking spinner
+  if (isInitialLoad && loading) {
     return (
       <div className="min-h-screen bg-background">
         <Sidebar
@@ -206,10 +237,23 @@ export default function CreatorDatabaseManagement() {
         />
         <Header isCollapsed={isSidebarCollapsed} />
         <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-            <div className="text-center">
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading creators from database...</p>
+          <div className="flex h-[calc(100vh-4rem)]">
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="bg-card border-b border-border px-6 py-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="h-8 w-48 bg-muted animate-pulse rounded mb-2"></div>
+                    <div className="h-4 w-64 bg-muted animate-pulse rounded"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden p-6">
+                <div className="space-y-3">
+                  {[...Array(10)].map((_, i) => (
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded"></div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -218,7 +262,7 @@ export default function CreatorDatabaseManagement() {
   }
 
   // Show error state
-  if (error) {
+  if (error && isInitialLoad) {
     return (
       <div className="min-h-screen bg-background">
         <Sidebar
@@ -259,8 +303,8 @@ export default function CreatorDatabaseManagement() {
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 creatorCounts={{
-                  total: allCreators?.length,
-                  filtered: filteredCreators?.length
+                  total: totalCreatorsCount,
+                  filtered: totalCreatorsCount // Server-side filtering, so filtered = total for display
                 }}
               />
             </div>
@@ -280,7 +324,7 @@ export default function CreatorDatabaseManagement() {
                   <div>
                     <h1 className="text-2xl font-bold text-foreground">Creator Database</h1>
                     <p className="text-sm text-muted-foreground">
-                      Manage and track {filteredCreators?.length} of {allCreators?.length} creators
+                      Manage and track {creators?.length} of {totalCreatorsCount} creators
                     </p>
                   </div>
                 </div>
@@ -312,7 +356,7 @@ export default function CreatorDatabaseManagement() {
                     type="search"
                     placeholder="Search by name, Instagram handle, or email..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e?.target?.value)}
+                    onChange={handleSearchChange}
                   />
                 </div>
                 <Select
@@ -322,15 +366,26 @@ export default function CreatorDatabaseManagement() {
                     { value: '100', label: '100 per page' }
                   ]}
                   value={itemsPerPage?.toString()}
-                  onChange={(value) => setItemsPerPage(parseInt(value))}
+                  onChange={(value) => {
+                    setItemsPerPage(parseInt(value));
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden relative">
+              {loading && !isInitialLoad && (
+                <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                  </div>
+                </div>
+              )}
               <div className="h-full overflow-y-auto custom-scrollbar">
                 <CreatorTable
-                  creators={paginatedCreators}
+                  creators={creators}
                   selectedCreators={selectedCreators}
                   onSelectionChange={setSelectedCreators}
                   onSort={handleSort}
@@ -344,15 +399,15 @@ export default function CreatorDatabaseManagement() {
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                  {Math.min(currentPage * itemsPerPage, filteredCreators?.length)} of{' '}
-                  {filteredCreators?.length} creators
+                  {Math.min(currentPage * itemsPerPage, totalCreatorsCount)} of{' '}
+                  {totalCreatorsCount} creators
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || loading}
                     iconName="ChevronLeft"
                     iconSize={16}
                   />
@@ -371,11 +426,12 @@ export default function CreatorDatabaseManagement() {
                       return (
                         <button
                           key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
+                          onClick={() => !loading && setCurrentPage(pageNum)}
+                          disabled={loading}
                           className={`w-8 h-8 rounded-md text-sm font-medium transition-colors duration-200 ${
                             currentPage === pageNum
                               ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-muted text-foreground'
+                              : 'hover:bg-muted text-foreground disabled:opacity-50'
                           }`}
                         >
                           {pageNum}
@@ -387,7 +443,7 @@ export default function CreatorDatabaseManagement() {
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || loading}
                     iconName="ChevronRight"
                     iconSize={16}
                   />
@@ -410,10 +466,10 @@ export default function CreatorDatabaseManagement() {
         isOpen={showExportDialog}
         onClose={() => setShowExportDialog(false)}
         selectedCount={selectedCreators?.length}
-        totalCount={allCreators?.length}
+        totalCount={totalCreatorsCount}
         creators={selectedCreators?.length > 0 
-          ? allCreators?.filter(c => selectedCreators?.includes(c?.id))
-          : filteredCreators
+          ? creators?.filter(c => selectedCreators?.includes(c?.id))
+          : creators
         }
       />
       <AddCreatorModal

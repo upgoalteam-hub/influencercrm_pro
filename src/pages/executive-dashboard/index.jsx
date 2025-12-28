@@ -14,6 +14,7 @@ import { realtimeService } from '../../services/realtimeService';
 import { campaignService } from '../../services/campaignService';
 import { creatorService } from '../../services/creatorService';
 import { exportUtils } from '../../utils/exportUtils';
+import { supabase } from '../../lib/supabase';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -29,26 +30,41 @@ const ExecutiveDashboard = () => {
       setLoading(true);
       
       // Fetch real data from Supabase
-      const [campaignsData, creatorsData] = await Promise.all([
+      // Use getCount() for accurate total count, and getAll() for other metrics
+      const [campaignsData, topCreators, totalCreatorsCount] = await Promise.all([
         campaignService?.getAll(),
-        creatorService?.getAll()
+        // fetch a small page for top performers (avoid loading all creators)
+        creatorService?.getAll({ limit: 6, offset: 0 }),
+        creatorService?.getCount() // Get accurate total count
       ]);
 
       // Calculate real metrics
-      const activeCampaigns = campaignsData?.filter(c => c?.payment_status === 'pending' || c?.payment_status === 'processing')?.length || 0;
-      const totalCreators = creatorsData?.length || 0;
-      const pendingPayments = campaignsData?.filter(c => c?.payment_status === 'pending')?.reduce((sum, c) => sum + (c?.amount || c?.agreed_amount || 0), 0) || 0;
-      const topPerformers = creatorsData?.filter(c => c?.followers_tier === 'Mega' || c?.followers_tier === 'Macro')?.length || 0;
+      const activeCampaigns = campaignsData?.filter(c => c?.status === 'active')?.length || 0;
+      const totalCreators = totalCreatorsCount || 0; // Use the count from getCount()
+
+      // Get pending payments sum from payments table
+      let pendingPayments = 0;
+      try {
+        const { data: pendingRows, error: pendingErr } = await supabase
+          .from('payments')
+          .select('amount')
+          .in('status', ['pending', 'overdue']);
+        if (!pendingErr && pendingRows) pendingPayments = pendingRows.reduce((s, r) => s + (r?.amount || 0), 0);
+      } catch (err) {
+        console.error('Error fetching pending payments:', err);
+      }
+
+      const topPerformers = (topCreators || []).slice(0, 6) || [];
 
       const data = {
         metrics: {
           totalCreators,
           activeCampaigns,
           pendingPayments,
-          topPerformers
+          topPerformers: Array.isArray(topPerformers) ? topPerformers.length : topPerformers
         },
         campaigns: campaignsData,
-        creators: creatorsData
+        creators: topPerformers
       };
 
       setDashboardData(data);
@@ -63,7 +79,7 @@ const ExecutiveDashboard = () => {
   const metricsData = dashboardData ? [
     {
       title: 'Total Creators',
-      value: dashboardData?.metrics?.totalCreators?.toString(),
+      value: (dashboardData?.metrics?.totalCreators ?? 0).toString(),
       change: '+12.5%',
       changeType: 'increase',
       trend: 'vs last month',
@@ -72,7 +88,7 @@ const ExecutiveDashboard = () => {
     },
     {
       title: 'Active Campaigns',
-      value: dashboardData?.metrics?.activeCampaigns?.toString(),
+      value: (dashboardData?.metrics?.activeCampaigns ?? 0).toString(),
       change: '+3',
       changeType: 'increase',
       trend: 'from last week',
@@ -81,7 +97,7 @@ const ExecutiveDashboard = () => {
     },
     {
       title: 'Pending Payments',
-      value: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })?.format(dashboardData?.metrics?.pendingPayments),
+      value: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })?.format(dashboardData?.metrics?.pendingPayments ?? 0),
       change: '-8.2%',
       changeType: 'decrease',
       trend: 'vs last month',
@@ -90,7 +106,7 @@ const ExecutiveDashboard = () => {
     },
     {
       title: 'Top Performers',
-      value: dashboardData?.metrics?.topPerformers?.toString(),
+      value: (dashboardData?.metrics?.topPerformers ?? 0).toString(),
       change: '+18.3%',
       changeType: 'increase',
       trend: 'engagement rate',
@@ -99,121 +115,11 @@ const ExecutiveDashboard = () => {
     }
   ] : [];
 
-  const recentActivities = [
-    {
-      type: 'creator_added',
-      title: 'New Creator Added',
-      description: 'Sarah Johnson (@fashionista_sarah) added to database',
-      user: 'Priya Sharma',
-      timestamp: '5 minutes ago'
-    },
-    {
-      type: 'campaign_created',
-      title: 'Campaign Created',
-      description: 'Winter Fashion Collection 2025 campaign launched',
-      user: 'Rahul Verma',
-      timestamp: '15 minutes ago'
-    },
-    {
-      type: 'payment_processed',
-      title: 'Payment Completed',
-      description: '₹15,000 paid to Ananya Desai for Summer Campaign',
-      user: 'System',
-      timestamp: '1 hour ago'
-    },
-    {
-      type: 'payment_overdue',
-      title: 'Payment Overdue Alert',
-      description: 'Payment for Campaign #2847 is 3 days overdue',
-      user: 'System',
-      timestamp: '2 hours ago'
-    },
-    {
-      type: 'creator_updated',
-      title: 'Creator Profile Updated',
-      description: 'Vikram Singh updated follower count to 250K',
-      user: 'Neha Patel',
-      timestamp: '3 hours ago'
-    }
-  ];
+  const [recentActivities, setRecentActivities] = useState([]);
 
-  const activeCampaigns = [
-    {
-      name: 'Summer Fashion Campaign',
-      brand: 'FashionHub India',
-      status: 'Active',
-      progress: 75,
-      creators: 15,
-      deadline: 'Dec 25, 2025'
-    },
-    {
-      name: 'Tech Product Launch',
-      brand: 'TechGear Pro',
-      status: 'Active',
-      progress: 45,
-      creators: 8,
-      deadline: 'Dec 30, 2025'
-    },
-    {
-      name: 'Fitness Challenge 2025',
-      brand: 'HealthFirst',
-      status: 'Planning',
-      progress: 20,
-      creators: 12,
-      deadline: 'Jan 15, 2026'
-    },
-    {
-      name: 'Beauty Product Review',
-      brand: 'GlowBeauty',
-      status: 'Active',
-      progress: 90,
-      creators: 20,
-      deadline: 'Dec 20, 2025'
-    }
-  ];
+  // activeCampaigns will be derived from campaignsData
 
-  const paymentAlerts = [
-    {
-      creator: 'Sarah Johnson',
-      campaign: 'Summer Fashion Campaign',
-      amount: '₹25,000',
-      daysOverdue: 5,
-      dueDate: 'Dec 13, 2025',
-      severity: 'critical'
-    },
-    {
-      creator: 'Vikram Singh',
-      campaign: 'Tech Product Launch',
-      amount: '₹18,500',
-      daysOverdue: 3,
-      dueDate: 'Dec 15, 2025',
-      severity: 'high'
-    },
-    {
-      creator: 'Ananya Desai',
-      campaign: 'Fitness Challenge',
-      amount: '₹12,000',
-      daysOverdue: 1,
-      dueDate: 'Dec 17, 2025',
-      severity: 'medium'
-    },
-    {
-      creator: 'Priya Sharma',
-      campaign: 'Beauty Product Review',
-      amount: '₹30,000',
-      daysOverdue: 7,
-      dueDate: 'Dec 11, 2025',
-      severity: 'critical'
-    },
-    {
-      creator: 'Rahul Verma',
-      campaign: 'Winter Collection',
-      amount: '₹22,500',
-      daysOverdue: 2,
-      dueDate: 'Dec 16, 2025',
-      severity: 'high'
-    }
-  ];
+  const [paymentAlerts, setPaymentAlerts] = useState([]);
 
   const campaignVolumeData = [
     { name: 'Jan', value: 12 },
@@ -265,6 +171,44 @@ const ExecutiveDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Load recent activities and payment alerts
+    const loadExtras = async () => {
+      try {
+        const { data: activities } = await supabase
+          .from('activity_log')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(8);
+
+        setRecentActivities(activities || []);
+      } catch (err) {
+        console.error('Error loading activities:', err);
+        setRecentActivities([]);
+      }
+
+      try {
+        const { data: overdue } = await supabase
+          .from('payments')
+          .select('id,creator_id,campaign_id,amount,due_date')
+          .eq('status', 'overdue')
+          .order('due_date', { ascending: false })
+          .limit(6);
+
+        setPaymentAlerts((overdue || []).map(p => ({
+          creator: p.creator_id,
+          campaign: p.campaign_id,
+          amount: p.amount,
+          dueDate: p.due_date,
+          severity: 'high'
+        })));
+      } catch (err) {
+        console.error('Error loading payment alerts:', err);
+        setPaymentAlerts([]);
+      }
+    };
+
+    loadExtras();
 
     // Subscribe to all relevant real-time changes for dashboard
     const creatorSubscription = realtimeService?.subscribeToCreators(
@@ -477,8 +421,8 @@ const ExecutiveDashboard = () => {
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeCampaigns?.map((campaign, index) => (
-                  <CampaignStatusCard key={index} campaign={campaign} />
+                {(dashboardData?.campaigns || []).filter(c => c?.status === 'active').map((campaign, index) => (
+                  <CampaignStatusCard key={campaign?.id ?? index} campaign={campaign} />
                 ))}
               </div>
             </div>

@@ -13,6 +13,9 @@ import QuickStatsWidget from './components/QuickStatsWidget';
 import RecentActivityFeed from './components/RecentActivityFeed';
 import RelatedCreatorsWidget from './components/RelatedCreatorsWidget';
 import { realtimeService } from '../../services/realtimeService';
+import { creatorService } from '../../services/creatorService';
+import { campaignService } from '../../services/campaignService';
+import Icon from '../../components/AppIcon';
 
 const CreatorProfileDetails = () => {
   const location = useLocation();
@@ -25,269 +28,176 @@ const CreatorProfileDetails = () => {
   const [payments, setPayments] = useState([]);
   const [priceHistory, setPriceHistory] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const mockCreator = {
-    id: 1,
-    name: "Sarah Johnson",
-    profileImage: "https://img.rocket.new/generatedImages/rocket_gen_img_103b528db-1763293982935.png",
-    profileImageAlt: "Professional headshot of young woman with long brown hair wearing white blouse against neutral background",
-    instagramHandle: "@fashionista_sarah",
-    instagramUrl: "https://instagram.com/fashionista_sarah",
-    isVerified: true,
-    isPremium: true,
-    status: "Active",
-    city: "Mumbai",
-    state: "Maharashtra",
-    followersCount: "125K",
-    engagementRate: "4.8%",
-    avgLikes: "6,000",
-    avgComments: "450",
-    lastSynced: "2 hours ago",
-    email: "sarah.johnson@email.com",
-    phone: "+91 98765 43210",
-    manager: "Priya Sharma",
-    managerPhone: "+91 98765 43211",
-    gender: "Female",
-    age: "26 years",
-    language: "Hindi, English",
-    categories: ["Fashion", "Lifestyle", "Beauty"],
-    tags: ["Fashion Influencer", "Brand Collaborations", "Product Reviews", "Style Tips", "Makeup Tutorials"],
-    pricingMatrix: [
-    { type: "Instagram Post", basePrice: 15000, currentPrice: 18000, lastUpdated: "15/12/2025" },
-    { type: "Instagram Reel", basePrice: 25000, currentPrice: 30000, lastUpdated: "15/12/2025" },
-    { type: "Instagram Story", basePrice: 8000, currentPrice: 10000, lastUpdated: "15/12/2025" },
-    { type: "Instagram Carousel", basePrice: 20000, currentPrice: 22000, lastUpdated: "10/12/2025" }]
+  // Helper function to format creator data for UI
+  const formatCreatorData = (dbCreator) => {
+    if (!dbCreator) return null;
 
+    // Extract Instagram handle from link or username
+    const getInstagramHandle = () => {
+      if (dbCreator?.username) {
+        return `@${dbCreator.username.replace('@', '')}`;
+      }
+      if (dbCreator?.instagram_link) {
+        const match = dbCreator.instagram_link.match(/instagram\.com\/([^\/\?]+)/);
+        if (match) return `@${match[1]}`;
+      }
+      return 'N/A';
+    };
+
+    // Format followers count
+    const formatFollowers = (followersTier) => {
+      if (!followersTier || followersTier === 'N/A') return '0';
+      // If it's a number string, format it
+      const num = parseInt(followersTier);
+      if (!isNaN(num)) {
+        if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+        if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+        return num.toString();
+      }
+      return followersTier;
+    };
+
+    return {
+      id: dbCreator?.id || null,
+      name: dbCreator?.name || 'Unknown Creator',
+      profileImage: dbCreator?.profile_image || dbCreator?.profile_picture || null,
+      profileImageAlt: `${dbCreator?.name || 'Creator'} profile picture`,
+      instagramHandle: getInstagramHandle(),
+      instagramUrl: dbCreator?.instagram_link || null,
+      isVerified: dbCreator?.is_verified || false,
+      isPremium: dbCreator?.is_premium || false,
+      status: dbCreator?.status || 'Active',
+      city: dbCreator?.city || 'N/A',
+      state: dbCreator?.state || 'N/A',
+      followersCount: formatFollowers(dbCreator?.followers_tier || dbCreator?.followers_count),
+      engagementRate: dbCreator?.engagement_rate ? `${dbCreator.engagement_rate}%` : 'N/A',
+      avgLikes: dbCreator?.avg_likes ? dbCreator.avg_likes.toLocaleString() : '0',
+      avgComments: dbCreator?.avg_comments ? dbCreator.avg_comments.toLocaleString() : '0',
+      lastSynced: dbCreator?.last_synced ? new Date(dbCreator.last_synced).toLocaleString() : 'Never',
+      email: dbCreator?.email || 'N/A',
+      phone: dbCreator?.whatsapp || dbCreator?.phone || 'N/A',
+      manager: dbCreator?.manager_name || 'N/A',
+      managerPhone: dbCreator?.manager_phone || 'N/A',
+      gender: dbCreator?.gender || 'N/A',
+      age: dbCreator?.age ? `${dbCreator.age} years` : 'N/A',
+      language: dbCreator?.language || 'N/A',
+      categories: dbCreator?.categories ? (Array.isArray(dbCreator.categories) ? dbCreator.categories : [dbCreator.categories]) : [],
+      tags: dbCreator?.tags ? (Array.isArray(dbCreator.tags) ? dbCreator.tags : [dbCreator.tags]) : [],
+      // Database fields (snake_case)
+      sr_no: dbCreator?.sr_no || 'N/A',
+      username: dbCreator?.username || 'N/A',
+      sheet_source: dbCreator?.sheet_source || 'N/A',
+      created_at: dbCreator?.created_at || null,
+      updated_at: dbCreator?.updated_at || null
+    };
   };
 
-  const mockCampaigns = [
-  {
-    id: 1,
-    campaignId: "CMP-2847",
-    campaignName: "Summer Fashion Campaign",
-    brandName: "Fashion Hub",
-    startDate: "01/11/2025",
-    endDate: "30/11/2025",
-    deliverables: ["2 Posts", "3 Reels", "5 Stories"],
-    totalReach: "2.5M",
-    engagement: "4.2%",
-    amount: 85000,
-    status: "Completed",
-    paymentStatus: "Paid"
-  },
-  {
-    id: 2,
-    campaignId: "CMP-2901",
-    campaignName: "Winter Collection Launch",
-    brandName: "Style Studio",
-    startDate: "10/12/2025",
-    endDate: "25/12/2025",
-    deliverables: ["1 Post", "2 Reels"],
-    totalReach: "1.8M",
-    engagement: "5.1%",
-    amount: 55000,
-    status: "Active",
-    paymentStatus: "Pending"
-  },
-  {
-    id: 3,
-    campaignId: "CMP-2756",
-    campaignName: "Festive Beauty Campaign",
-    brandName: "Glow Cosmetics",
-    startDate: "15/10/2025",
-    endDate: "31/10/2025",
-    deliverables: ["3 Posts", "4 Stories"],
-    totalReach: "3.2M",
-    engagement: "4.8%",
-    amount: 72000,
-    status: "Completed",
-    paymentStatus: "Paid"
-  }];
+  // Fetch creator data
+  useEffect(() => {
+    const fetchCreatorData = async () => {
+      // Get creatorId from URL param or location state
+      const creatorId = id || location?.state?.creatorId;
+      
+      if (!creatorId) {
+        console.error('❌ No creator ID provided');
+        setError('Creator ID is missing. Please select a creator from the database.');
+        setLoading(false);
+        return;
+      }
 
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('🔵 Fetching creator data for ID:', creatorId);
+        
+        // Fetch creator details
+        const creatorData = await creatorService?.getById(creatorId);
+        
+        if (!creatorData) {
+          throw new Error('Creator not found');
+        }
 
-  const mockPayments = [
-  {
-    id: 1,
-    date: "05/12/2025",
-    time: "02:30 PM",
-    campaignName: "Summer Fashion Campaign",
-    brandName: "Fashion Hub",
-    amount: 85000,
-    mode: "Bank Transfer",
-    modeIcon: "Building2",
-    reference: "TXN-2847-001",
-    utrNumber: "UTR123456789012",
-    status: "Paid",
-    delayDays: 0
-  },
-  {
-    id: 2,
-    date: "15/12/2025",
-    time: "11:00 AM",
-    campaignName: "Winter Collection Launch",
-    brandName: "Style Studio",
-    amount: 55000,
-    mode: "UPI",
-    modeIcon: "Smartphone",
-    reference: "TXN-2901-001",
-    utrNumber: null,
-    status: "Pending",
-    delayDays: 3
-  },
-  {
-    id: 3,
-    date: "25/10/2025",
-    time: "04:15 PM",
-    campaignName: "Festive Beauty Campaign",
-    brandName: "Glow Cosmetics",
-    amount: 72000,
-    mode: "NEFT",
-    modeIcon: "Building2",
-    reference: "TXN-2756-001",
-    utrNumber: "UTR987654321098",
-    status: "Paid",
-    delayDays: 0
-  }];
+        console.log('✅ Creator data fetched:', creatorData);
+        const formattedCreator = formatCreatorData(creatorData);
+        setCreator(formattedCreator);
 
+        // Fetch campaigns for this creator
+        try {
+          const allCampaigns = await campaignService?.getAll();
+          const creatorCampaigns = allCampaigns?.filter(c => 
+            c?.creator_id === creatorId || 
+            c?.creators?.id === creatorId ||
+            c?.creator?.id === creatorId
+          ) || [];
+          
+          console.log('✅ Campaigns fetched:', creatorCampaigns.length);
+          setCampaigns(creatorCampaigns);
+          
+          // Extract payments from campaigns
+          const campaignPayments = creatorCampaigns
+            ?.filter(c => c?.amount || c?.agreed_amount)
+            ?.map((campaign, index) => ({
+              id: campaign?.id || `payment-${index}`,
+              date: campaign?.created_at ? new Date(campaign.created_at).toLocaleDateString('en-IN') : 'N/A',
+              time: campaign?.created_at ? new Date(campaign.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+              campaignName: campaign?.name || 'Unnamed Campaign',
+              brandName: campaign?.brand_name || campaign?.brand || 'N/A',
+              amount: campaign?.amount || campaign?.agreed_amount || 0,
+              mode: campaign?.payment_method || 'Bank Transfer',
+              modeIcon: 'Building2',
+              reference: campaign?.id ? `TXN-${campaign.id.slice(0, 8)}` : 'N/A',
+              utrNumber: campaign?.utr_number || null,
+              status: campaign?.payment_status || 'Pending',
+              delayDays: campaign?.end_date ? Math.max(0, Math.floor((new Date() - new Date(campaign.end_date)) / (1000 * 60 * 60 * 24))) : 0
+            })) || [];
+          
+          setPayments(campaignPayments);
+        } catch (campaignError) {
+          console.error('Error fetching campaigns:', campaignError);
+          setCampaigns([]);
+          setPayments([]);
+        }
 
-  const mockPriceHistory = [
-  {
-    date: "01/01/2025",
-    instagramPost: 15000,
-    instagramReel: 25000,
-    instagramStory: 8000,
-    reason: "Initial Pricing",
-    updatedBy: "Admin",
-    notes: "Base pricing set during onboarding based on follower count and engagement metrics."
-  },
-  {
-    date: "15/06/2025",
-    instagramPost: 16500,
-    instagramReel: 27000,
-    instagramStory: 9000,
-    reason: "Performance Review",
-    updatedBy: "Priya Sharma",
-    notes: "Price increased after consistent high engagement rates and successful campaign completions."
-  },
-  {
-    date: "15/12/2025",
-    instagramPost: 18000,
-    instagramReel: 30000,
-    instagramStory: 10000,
-    reason: "Market Adjustment",
-    updatedBy: "Admin",
-    notes: "Pricing updated to reflect current market rates and increased follower base (125K followers)."
-  }];
+        // Price history and notes would come from separate tables if they exist
+        // For now, set empty arrays
+        setPriceHistory([]);
+        setNotes([]);
 
+      } catch (err) {
+        console.error('❌ Error fetching creator:', err);
+        setError(err?.message || 'Failed to load creator profile');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const mockNotes = [
-  {
-    id: 1,
-    author: "Priya Sharma",
-    role: "Campaign Manager",
-    date: "16/12/2025",
-    time: "03:45 PM",
-    content: "Sarah has been extremely professional in all campaigns. Her content quality is consistently high and she delivers on time. Recommended for premium brand collaborations.",
-    tags: ["Professional", "High Quality"]
-  },
-  {
-    id: 2,
-    author: "Rahul Verma",
-    role: "Super Admin",
-    date: "10/12/2025",
-    time: "11:20 AM",
-    content: "Negotiated pricing for Winter Collection campaign. Sarah agreed to ₹55,000 for 1 post + 2 reels package. Payment terms: 50% advance, 50% on completion.",
-    tags: ["Negotiation", "Payment Terms"]
-  },
-  {
-    id: 3,
-    author: "Anjali Patel",
-    role: "Manager",
-    date: "05/12/2025",
-    time: "09:15 AM",
-    content: "Payment for Summer Fashion Campaign processed successfully. Sarah confirmed receipt and provided excellent feedback about the collaboration experience.",
-    tags: ["Payment", "Feedback"]
-  }];
+    fetchCreatorData();
+  }, [id, location?.state?.creatorId]);
 
-
-  const mockQuickStats = {
-    totalCampaigns: 12,
-    completedCampaigns: 10,
-    activeCampaigns: 2,
-    totalEarned: 850000,
-    avgPerCampaign: 70833,
-    performanceScore: 9.2,
-    memberSince: "Jan 2025"
+  // Calculate quick stats from real data
+  const quickStats = {
+    totalCampaigns: campaigns?.length || 0,
+    completedCampaigns: campaigns?.filter(c => c?.status === 'completed' || c?.payment_status === 'paid')?.length || 0,
+    activeCampaigns: campaigns?.filter(c => c?.status === 'active' || c?.payment_status === 'pending')?.length || 0,
+    totalEarned: payments?.filter(p => p?.status === 'Paid')?.reduce((sum, p) => sum + (p?.amount || 0), 0) || 0,
+    avgPerCampaign: campaigns?.length > 0 
+      ? Math.round((payments?.filter(p => p?.status === 'Paid')?.reduce((sum, p) => sum + (p?.amount || 0), 0) || 0) / campaigns.length)
+      : 0,
+    performanceScore: 0, // Would need to calculate from engagement metrics
+    memberSince: creator?.created_at ? new Date(creator.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'N/A'
   };
-
-  const mockRecentActivities = [
-  {
-    id: 1,
-    type: "campaign",
-    description: "Added to Winter Collection Launch campaign",
-    timestamp: "2 hours ago",
-    author: "Priya Sharma"
-  },
-  {
-    id: 2,
-    type: "payment",
-    description: "Payment of ₹85,000 processed for Summer Fashion Campaign",
-    timestamp: "1 day ago",
-    author: "Finance Team"
-  },
-  {
-    id: 3,
-    type: "profile",
-    description: "Pricing updated for Instagram Reel to ₹30,000",
-    timestamp: "3 days ago",
-    author: "Admin"
-  },
-  {
-    id: 4,
-    type: "note",
-    description: "New note added by Priya Sharma",
-    timestamp: "5 days ago",
-    author: "Priya Sharma"
-  }];
-
-
-  const mockRelatedCreators = [
-  {
-    id: 2,
-    name: "Priya Kapoor",
-    profileImage: "https://img.rocket.new/generatedImages/rocket_gen_img_110d8ebca-1763293372651.png",
-    profileImageAlt: "Professional portrait of Indian woman with shoulder-length black hair wearing traditional ethnic wear",
-    instagramHandle: "@priya_style",
-    followersCount: "110K",
-    category: "Fashion"
-  },
-  {
-    id: 3,
-    name: "Neha Sharma",
-    profileImage: "https://img.rocket.new/generatedImages/rocket_gen_img_115c78a62-1763299199397.png",
-    profileImageAlt: "Headshot of young woman with long wavy hair in casual denim jacket smiling at camera",
-    instagramHandle: "@neha_lifestyle",
-    followersCount: "95K",
-    category: "Lifestyle"
-  },
-  {
-    id: 4,
-    name: "Riya Patel",
-    profileImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1fb567cf5-1763298323954.png",
-    profileImageAlt: "Professional photo of woman with straight hair wearing business casual attire against white background",
-    instagramHandle: "@riya_beauty",
-    followersCount: "130K",
-    category: "Beauty"
-  }];
-
 
   const tabs = [
-  { id: 'overview', label: 'Overview', icon: 'LayoutDashboard', badge: null },
-  { id: 'campaigns', label: 'Campaign History', icon: 'Megaphone', badge: campaigns?.length },
-  { id: 'payments', label: 'Payment History', icon: 'CreditCard', badge: null },
-  { id: 'pricing', label: 'Price History', icon: 'TrendingUp', badge: null },
-  { id: 'notes', label: 'Notes', icon: 'MessageSquare', badge: notes?.length }];
-
+    { id: 'overview', label: 'Overview', icon: 'LayoutDashboard', badge: null },
+    { id: 'campaigns', label: 'Campaign History', icon: 'Megaphone', badge: campaigns?.length || 0 },
+    { id: 'payments', label: 'Payment History', icon: 'CreditCard', badge: null },
+    { id: 'pricing', label: 'Price History', icon: 'TrendingUp', badge: null },
+    { id: 'notes', label: 'Notes', icon: 'MessageSquare', badge: notes?.length || 0 }
+  ];
 
   const handleEdit = () => {
     console.log('Edit creator profile');
@@ -305,21 +215,22 @@ const CreatorProfileDetails = () => {
     console.log('Add note:', noteContent);
   };
 
+  // Real-time subscriptions
   useEffect(() => {
-    if (!id) return;
+    const creatorId = id || location?.state?.creatorId;
+    if (!creatorId) return;
 
     // Subscribe to real-time creator changes
     const creatorSubscription = realtimeService?.subscribeToCreators(
       null,
       (updatedCreator) => {
-        // Handle UPDATE - refresh creator profile if it's the current one
-        if (updatedCreator?.id === id) {
-          setCreator(updatedCreator);
+        if (updatedCreator?.id === creatorId) {
+          const formattedCreator = formatCreatorData(updatedCreator);
+          setCreator(formattedCreator);
         }
       },
       (deletedId) => {
-        // Handle DELETE - navigate away if current creator is deleted
-        if (deletedId === id) {
+        if (deletedId === creatorId) {
           navigate('/creator-database-management');
         }
       }
@@ -328,14 +239,12 @@ const CreatorProfileDetails = () => {
     // Subscribe to campaign changes for this creator
     const campaignSubscription = realtimeService?.subscribeToCampaigns(
       (newCampaign) => {
-        // Add new campaign if it belongs to this creator
-        if (newCampaign?.creatorId === id) {
+        if (newCampaign?.creator_id === creatorId || newCampaign?.creators?.id === creatorId) {
           setCampaigns((prev) => [newCampaign, ...prev]);
         }
       },
       (updatedCampaign) => {
-        // Update campaign if it belongs to this creator
-        if (updatedCampaign?.creatorId === id) {
+        if (updatedCampaign?.creator_id === creatorId || updatedCampaign?.creators?.id === creatorId) {
           setCampaigns((prev) =>
             prev?.map((campaign) =>
               campaign?.id === updatedCampaign?.id ? updatedCampaign : campaign
@@ -344,17 +253,15 @@ const CreatorProfileDetails = () => {
         }
       },
       (deletedId) => {
-        // Remove campaign from list
         setCampaigns((prev) => prev?.filter((campaign) => campaign?.id !== deletedId));
       }
     );
 
-    // Cleanup subscriptions on unmount
     return () => {
       creatorSubscription?.unsubscribe();
       campaignSubscription?.unsubscribe();
     };
-  }, [id, navigate]);
+  }, [id, location?.state?.creatorId, navigate]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -370,6 +277,55 @@ const CreatorProfileDetails = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading creator profile...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !creator) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <Header isCollapsed={isSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon name="AlertTriangle" size={32} color="var(--color-destructive)" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Creator Not Found</h2>
+              <p className="text-muted-foreground mb-4">{error || 'The creator profile could not be loaded.'}</p>
+              <button
+                onClick={() => navigate('/creator-database-management')}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Back to Creator Database
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
@@ -380,38 +336,34 @@ const CreatorProfileDetails = () => {
 
       <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <ProfileHeader
-          creator={creator || mockCreator}
+          creator={creator}
           onEdit={handleEdit}
           onArchive={handleArchive}
           onAddToCampaign={handleAddToCampaign} />
-
 
         <TabNavigation
           activeTab={activeTab}
           onTabChange={setActiveTab}
           tabs={tabs} />
 
-
         <div className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              {activeTab === 'overview' && <OverviewTab creator={creator || mockCreator} />}
+              {activeTab === 'overview' && <OverviewTab creator={creator} />}
               {activeTab === 'campaigns' && <CampaignHistoryTab campaigns={campaigns} />}
-              {activeTab === 'payments' && <PaymentHistoryTab payments={mockPayments} />}
-              {activeTab === 'pricing' && <PriceHistoryTab priceHistory={mockPriceHistory} />}
-              {activeTab === 'notes' && <NotesTab notes={mockNotes} onAddNote={handleAddNote} />}
+              {activeTab === 'payments' && <PaymentHistoryTab payments={payments} />}
+              {activeTab === 'pricing' && <PriceHistoryTab priceHistory={priceHistory} />}
+              {activeTab === 'notes' && <NotesTab notes={notes} onAddNote={handleAddNote} />}
             </div>
 
             <div className="space-y-6">
-              <QuickStatsWidget stats={mockQuickStats} />
-              <RecentActivityFeed activities={mockRecentActivities} />
-              <RelatedCreatorsWidget creators={mockRelatedCreators} />
+              <QuickStatsWidget stats={quickStats} />
+              {/* RecentActivityFeed and RelatedCreatorsWidget can be added later with real data */}
             </div>
           </div>
         </div>
       </main>
     </div>);
-
 };
 
 export default CreatorProfileDetails;

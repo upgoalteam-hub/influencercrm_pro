@@ -1,45 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
+import { supabase } from '../../lib/supabase';
 
 const SearchGlobal = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [recentSearches, setRecentSearches] = useState([
-    'Sarah Johnson',
-    'Summer Fashion Campaign',
-    '@fashionista_sarah',
-    'Pending Payments'
-  ]);
+  const [recentSearches, setRecentSearches] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const searchRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
-  const mockResults = [
-    {
-      type: 'creator',
-      title: 'Sarah Johnson',
-      subtitle: '@fashionista_sarah • 125K followers',
-      path: '/creator-profile-details',
-      icon: 'User'
-    },
-    {
-      type: 'campaign',
-      title: 'Summer Fashion Campaign',
-      subtitle: 'Active • 15 creators • Ends Dec 25, 2025',
-      path: '/campaign-management-center',
-      icon: 'Megaphone'
-    },
-    {
-      type: 'payment',
-      title: 'Payment #2847',
-      subtitle: 'Overdue • $2,500 • Sarah Johnson',
-      path: '/payment-processing-center',
-      icon: 'CreditCard'
-    }
-  ];
+  const [mockResults] = useState([]); // keep shape for fallback
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -61,13 +35,74 @@ const SearchGlobal = () => {
   useEffect(() => {
     if (searchQuery?.length > 0) {
       setIsLoading(true);
-      const timer = setTimeout(() => {
-        setSearchResults(mockResults?.filter(result =>
-          result?.title?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
-          result?.subtitle?.toLowerCase()?.includes(searchQuery?.toLowerCase())
-        ));
-        setIsLoading(false);
-      }, 300);
+      const timer = setTimeout(async () => {
+        try {
+          const q = searchQuery.trim();
+
+          // Search creators
+          const { data: creators } = await supabase
+            .from('creators')
+            .select('id,name,username,instagram_link,followers_count')
+            .or(`name.ilike.%${q}%,username.ilike.%${q}%,email.ilike.%${q}%,instagram_link.ilike.%${q}%`)
+            .limit(6);
+
+          // Search campaigns
+          const { data: campaigns } = await supabase
+            .from('campaigns')
+            .select('id,name,brand')
+            .ilike('name', `%${q}%`)
+            .limit(4);
+
+          // Search payments by id (basic)
+          const { data: payments } = await supabase
+            .from('payments')
+            .select('id,amount,creator_id')
+            .ilike('id', `%${q}%`)
+            .limit(4);
+
+          const results = [];
+
+          if (creators?.length) {
+            creators.forEach(c => results.push({
+              type: 'creator',
+              id: c.id,
+              title: c.name,
+              subtitle: `${c.username || ''} • ${c.followers_count ? `${c.followers_count} followers` : 'N/A'}`,
+              path: `/creator-profile-details/${c.id}`,
+              icon: 'User'
+            }));
+          }
+
+          if (campaigns?.length) {
+            campaigns.forEach(c => results.push({
+              type: 'campaign',
+              id: c.id,
+              title: c.name,
+              subtitle: `${c.brand || ''}`,
+              path: `/campaign-management-center`,
+              icon: 'Megaphone'
+            }));
+          }
+
+          if (payments?.length) {
+            payments.forEach(p => results.push({
+              type: 'payment',
+              id: p.id,
+              title: `Payment #${p.id}`,
+              subtitle: `₹${p.amount} • ${p.creator_id || ''}`,
+              path: `/payment-processing-center`,
+              icon: 'CreditCard'
+            }));
+          }
+
+          setSearchResults(results);
+        } catch (err) {
+          console.error('Search error', err);
+          setSearchResults([]);
+        } finally {
+          setIsLoading(false);
+        }
+      }, 350);
 
       return () => clearTimeout(timer);
     } else {

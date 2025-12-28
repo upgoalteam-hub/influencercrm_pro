@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
@@ -7,9 +7,15 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   const navigate = useNavigate();
   const [editingCell, setEditingCell] = useState(null);
 
+  // Memoize creators to prevent unnecessary re-renders
+  const stableCreators = useMemo(() => {
+    if (!creators || !Array.isArray(creators)) return [];
+    return creators.filter(creator => creator && creator.id); // Filter out invalid entries
+  }, [creators]);
+
   const handleSelectAll = (e) => {
     if (e?.target?.checked) {
-      onSelectionChange(creators?.map(c => c?.id));
+      onSelectionChange(stableCreators?.map(c => c?.id));
     } else {
       onSelectionChange([]);
     }
@@ -28,7 +34,12 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   };
 
   const handleViewDetails = (creatorId) => {
-    navigate('/creator-profile-details', { state: { creatorId } });
+    if (!creatorId) {
+      console.error('❌ Cannot view details: creator ID is missing');
+      return;
+    }
+    // Navigate with ID in URL for better shareability and browser history
+    navigate(`/creator-profile-details/${creatorId}`);
   };
 
   const formatNumber = (num) => {
@@ -70,7 +81,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   };
 
   const SortableHeader = ({ column, label }) => (
-    <th className="px-4 py-3 text-left">
+    <th className="px-4 py-3 text-left whitespace-nowrap">
       <button
         onClick={() => handleSort(column)}
         className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
@@ -86,15 +97,76 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
     </th>
   );
 
+  // Empty state
+  if (!stableCreators || stableCreators.length === 0) {
+    return (
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full table-fixed" style={{ tableLayout: 'fixed' }}>
+          <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
+            <tr>
+              <th className="px-4 py-3 w-12">
+                <input
+                  type="checkbox"
+                  disabled
+                  className="w-4 h-4 rounded border-input text-primary"
+                  aria-label="Select all creators"
+                />
+              </th>
+              <SortableHeader column="sr_no" label="sr_no" />
+              <SortableHeader column="name" label="name" />
+              <SortableHeader column="instagram_link" label="instagram_link" />
+              <SortableHeader column="followers_tier" label="followers_tier" />
+              <SortableHeader column="state" label="state" />
+              <SortableHeader column="city" label="city" />
+              <SortableHeader column="whatsapp" label="whatsapp" />
+              <SortableHeader column="email" label="email" />
+              <SortableHeader column="gender" label="gender" />
+              <SortableHeader column="username" label="username" />
+              <SortableHeader column="sheet_source" label="sheet_source" />
+              <th className="px-4 py-3 text-left">
+                <span className="text-xs font-medium text-muted-foreground">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={13} className="px-4 py-12 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Icon name="Users" size={32} color="var(--color-muted-foreground)" />
+                  <p className="text-sm text-muted-foreground">No creators found</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto custom-scrollbar">
-      <table className="w-full">
+      <table className="w-full table-fixed" style={{ tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '48px' }} /> {/* Checkbox */}
+          <col style={{ width: '80px' }} /> {/* sr_no */}
+          <col style={{ width: '200px' }} /> {/* name */}
+          <col style={{ width: '250px' }} /> {/* instagram_link */}
+          <col style={{ width: '120px' }} /> {/* followers_tier */}
+          <col style={{ width: '150px' }} /> {/* state */}
+          <col style={{ width: '150px' }} /> {/* city */}
+          <col style={{ width: '150px' }} /> {/* whatsapp */}
+          <col style={{ width: '200px' }} /> {/* email */}
+          <col style={{ width: '100px' }} /> {/* gender */}
+          <col style={{ width: '150px' }} /> {/* username */}
+          <col style={{ width: '150px' }} /> {/* sheet_source */}
+          <col style={{ width: '120px' }} /> {/* Actions */}
+        </colgroup>
         <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
           <tr>
             <th className="px-4 py-3 w-12">
               <input
                 type="checkbox"
-                checked={selectedCreators?.length === creators?.length && creators?.length > 0}
+                checked={selectedCreators?.length === stableCreators?.length && stableCreators?.length > 0}
                 onChange={handleSelectAll}
                 className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
                 aria-label="Select all creators"
@@ -117,88 +189,94 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {creators?.map((creator) => (
-            <tr
-              key={creator?.id}
-              className="hover:bg-muted/30 transition-colors duration-200"
-            >
-              <td className="px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={selectedCreators?.includes(creator?.id)}
-                  onChange={() => handleSelectCreator(creator?.id)}
-                  className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-                  aria-label={`Select ${creator?.name}`}
-                />
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.sr_no}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm font-medium text-foreground truncate max-w-[200px]">
-                  {creator?.name}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                {creator?.instagram_link !== 'N/A' ? (
-                  <a
-                    href={creator?.instagram_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex items-center gap-1 truncate max-w-[200px]"
-                  >
-                    {creator?.instagram_link}
-                    <Icon name="ExternalLink" size={12} />
-                  </a>
-                ) : (
-                  <span className="text-sm text-muted-foreground">N/A</span>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.followers_tier}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.state}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.city}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground">{creator?.whatsapp}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-muted-foreground truncate max-w-[200px]">
-                  {creator?.email}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground capitalize">{creator?.gender}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-foreground">@{creator?.username}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-sm text-muted-foreground">{creator?.sheet_source}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleViewDetails(creator?.id)}
-                    iconName="Eye"
-                    iconSize={16}
+          {stableCreators?.map((creator, index) => {
+            // Ensure stable key - use index as fallback only if id is missing
+            const rowKey = creator?.id || `creator-${index}`;
+            
+            return (
+              <tr
+                key={rowKey}
+                className="hover:bg-muted/30 transition-colors duration-200"
+              >
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedCreators?.includes(creator?.id)}
+                    onChange={() => handleSelectCreator(creator?.id)}
+                    className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                    aria-label={`Select ${creator?.name}`}
                   />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    iconName="Edit"
-                    iconSize={16}
-                  />
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground truncate">{creator?.sr_no || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm font-medium text-foreground truncate" title={creator?.name}>
+                    {creator?.name || 'N/A'}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  {creator?.instagram_link && creator?.instagram_link !== 'N/A' ? (
+                    <a
+                      href={creator?.instagram_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center gap-1 truncate"
+                      title={creator?.instagram_link}
+                    >
+                      <span className="truncate">{creator?.instagram_link}</span>
+                      <Icon name="ExternalLink" size={12} className="flex-shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">N/A</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground truncate">{creator?.followers_tier || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground truncate">{creator?.state || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground truncate">{creator?.city || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground truncate">{creator?.whatsapp || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-muted-foreground truncate" title={creator?.email}>
+                    {creator?.email || 'N/A'}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground capitalize truncate">{creator?.gender || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-foreground truncate">@{creator?.username || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-muted-foreground truncate">{creator?.sheet_source || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleViewDetails(creator?.id)}
+                      iconName="Eye"
+                      iconSize={16}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      iconName="Edit"
+                      iconSize={16}
+                    />
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
