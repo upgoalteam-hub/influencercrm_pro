@@ -30,11 +30,11 @@ const ExecutiveDashboard = () => {
       setLoading(true);
       
       // Fetch real data from Supabase
-      // Use getCount() for accurate total count, and getAll() for other metrics
-      const [campaignsData, topCreators, totalCreatorsCount] = await Promise.all([
+      // Use getCount() for accurate total count, and getTopPerformers() for analytics
+      const [campaignsData, topPerformers, totalCreatorsCount] = await Promise.all([
         campaignService?.getAll(),
-        // fetch a small page for top performers (avoid loading all creators)
-        creatorService?.getAll({ limit: 6, offset: 0 }),
+        // Get top performers with performance scores calculated
+        creatorService?.getTopPerformers(6),
         creatorService?.getCount() // Get accurate total count
       ]);
 
@@ -53,8 +53,6 @@ const ExecutiveDashboard = () => {
       } catch (err) {
         console.error('Error fetching pending payments:', err);
       }
-
-      const topPerformers = (topCreators || []).slice(0, 6) || [];
 
       const data = {
         metrics: {

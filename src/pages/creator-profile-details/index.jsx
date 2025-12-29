@@ -15,6 +15,7 @@ import RelatedCreatorsWidget from './components/RelatedCreatorsWidget';
 import { realtimeService } from '../../services/realtimeService';
 import { creatorService } from '../../services/creatorService';
 import { campaignService } from '../../services/campaignService';
+import { calculatePerformanceScore } from '../../utils/performanceUtils';
 import Icon from '../../components/AppIcon';
 
 const CreatorProfileDetails = () => {
@@ -91,7 +92,8 @@ const CreatorProfileDetails = () => {
       username: dbCreator?.username || 'N/A',
       sheet_source: dbCreator?.sheet_source || 'N/A',
       created_at: dbCreator?.created_at || null,
-      updated_at: dbCreator?.updated_at || null
+      updated_at: dbCreator?.updated_at || null,
+      manual_performance_score: dbCreator?.manual_performance_score || null
     };
   };
 
@@ -187,7 +189,25 @@ const CreatorProfileDetails = () => {
     avgPerCampaign: campaigns?.length > 0 
       ? Math.round((payments?.filter(p => p?.status === 'Paid')?.reduce((sum, p) => sum + (p?.amount || 0), 0) || 0) / campaigns.length)
       : 0,
-    performanceScore: 0, // Would need to calculate from engagement metrics
+    performanceScore: (() => {
+      // Get creator data with engagement metrics
+      const creatorData = {
+        engagement_rate: creator?.engagementRate ? parseFloat(creator.engagementRate.replace('%', '')) : 0,
+        avg_likes: parseFloat(creator?.avgLikes?.replace(/,/g, '')) || 0,
+        avg_comments: parseFloat(creator?.avgComments?.replace(/,/g, '')) || 0,
+        manual_performance_score: creator?.manual_performance_score
+      };
+      
+      const result = calculatePerformanceScore(creatorData, campaigns, payments);
+      return result.score;
+    })(),
+    isManualScore: (() => {
+      const creatorData = {
+        manual_performance_score: creator?.manual_performance_score
+      };
+      const result = calculatePerformanceScore(creatorData, campaigns, payments);
+      return result.isManual;
+    })(),
     memberSince: creator?.created_at ? new Date(creator.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'N/A'
   };
 
@@ -357,7 +377,25 @@ const CreatorProfileDetails = () => {
             </div>
 
             <div className="space-y-6">
-              <QuickStatsWidget stats={quickStats} />
+              <QuickStatsWidget 
+          stats={quickStats} 
+          creatorId={creator?.id}
+          onScoreUpdate={(newScore) => {
+            // Refresh creator data to get updated score
+            const fetchCreatorData = async () => {
+              try {
+                const creatorData = await creatorService?.getById(creator.id);
+                if (creatorData) {
+                  const formattedCreator = formatCreatorData(creatorData);
+                  setCreator(formattedCreator);
+                }
+              } catch (err) {
+                console.error('Error refreshing creator data:', err);
+              }
+            };
+            fetchCreatorData();
+          }}
+        />
               {/* RecentActivityFeed and RelatedCreatorsWidget can be added later with real data */}
             </div>
           </div>
