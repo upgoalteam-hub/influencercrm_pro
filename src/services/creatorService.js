@@ -1,14 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-/**
- * Creator Service - Handles all creator-related database operations
- * Returns data with EXACT database column names (snake_case)
- */
 export const creatorService = {
-  /**
-   * Get total count of creators in database
-   * @returns {Promise<number>} Total number of creators
-   */
   async getCount() {
     try {
       const { count, error } = await supabase
@@ -16,7 +8,6 @@ export const creatorService = {
         ?.select('*', { count: 'exact', head: true });
 
       if (error) throw error;
-
       return count || 0;
     } catch (error) {
       console.error('Error fetching creator count:', error);
@@ -24,57 +15,17 @@ export const creatorService = {
     }
   },
 
-  /**
-   * Fetch all creators from database with pagination support
-   * @param {Object} options - Optional pagination and filtering options
-   * @param {number} options.limit - Number of records per page (default: 1000, max: 1000 per Supabase)
-   * @param {number} options.offset - Offset for pagination
-   * @param {boolean} options.fetchAll - If true, fetches all records using pagination (default: false)
-   * @returns {Promise<Array>} Array of creator objects with exact database column names
-   */
   async getAll(options = {}) {
     try {
-      const { limit = 1000, offset = 0, fetchAll = false } = options;
+      const { limit = 1000, offset = 0 } = options;
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('*')
+        ?.order('created_at', { ascending: false })
+        ?.range(offset, offset + limit - 1);
 
-      if (fetchAll) {
-        // Fetch all creators using pagination
-        let allData = [];
-        let currentOffset = 0;
-        const pageSize = 1000; // Supabase max per query
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            ?.from('creators')
-            ?.select('*')
-            ?.order('created_at', { ascending: false })
-            ?.range(currentOffset, currentOffset + pageSize - 1);
-
-          if (error) throw error;
-
-          if (data && data.length > 0) {
-            allData = [...allData, ...data];
-            currentOffset += pageSize;
-            // If we got less than pageSize, we've reached the end
-            hasMore = data.length === pageSize;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        return allData;
-      } else {
-        // Standard paginated query
-        const { data, error } = await supabase
-          ?.from('creators')
-          ?.select('*')
-          ?.order('created_at', { ascending: false })
-          ?.range(offset, offset + limit - 1);
-
-        if (error) throw error;
-
-        return data || [];
-      }
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error fetching creators:', error);
       throw error;
@@ -240,77 +191,16 @@ export const creatorService = {
     try {
       const { data, error } = await supabase
         ?.from('creators')
-        ?.insert([creatorData])
-        ?.select()
-        ?.single();
+        ?.select(column)
+        ?.not(column, 'is', null)
+        ?.order(column);
 
       if (error) throw error;
-
-      return data;
+      const values = data?.map(item => item?.[column])?.filter(Boolean);
+      const uniqueValues = [...new Set(values)];
+      return uniqueValues;
     } catch (error) {
-      console.error('Error creating creator:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Update an existing creator
-   * @param {string} id - Creator ID
-   * @param {Object} updates - Fields to update (using exact database column names)
-   * @returns {Promise<Object>} Updated creator object
-   */
-  async update(id, updates) {
-    try {
-      const { data, error } = await supabase
-        ?.from('creators')
-        ?.update(updates)
-        ?.eq('id', id)
-        ?.select()
-        ?.single();
-
-      if (error) throw error;
-
-      return data;
-    } catch (error) {
-      console.error('Error updating creator:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Delete a creator
-   * @param {string} id - Creator ID
-   * @returns {Promise<void>}
-   */
-  async delete(id) {
-    try {
-      const { error } = await supabase
-        ?.from('creators')
-        ?.delete()
-        ?.eq('id', id);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deleting creator:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Bulk delete creators
-   * @param {Array<string>} ids - Array of creator IDs
-   * @returns {Promise<void>}
-   */
-  async bulkDelete(ids) {
-    try {
-      const { error } = await supabase
-        ?.from('creators')
-        ?.delete()
-        ?.in('id', ids);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error bulk deleting creators:', error);
+      console.error(`Error fetching unique values for ${column}:`, error);
       throw error;
     }
   },

@@ -1,6 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import { Checkbox } from '../../../components/ui/Checkbox';
+import { creatorService } from '../../../services/creatorService';
+
+// Move FilterSection outside and memoize to prevent re-creation on every render
+const FilterSection = React.memo(({ 
+  title, 
+  items, 
+  filterKey, 
+  icon, 
+  loading = false, 
+  showSearch = false, 
+  searchQuery, 
+  onSearchChange, 
+  expandedSections, 
+  toggleSection, 
+  filters, 
+  handleCheckboxChange 
+}) => {
+  return (
+    <div className="border-b border-border">
+      <button
+        onClick={() => toggleSection(filterKey)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors duration-200"
+      >
+        <div className="flex items-center gap-2">
+          <Icon name={icon} size={18} color="var(--color-primary)" />
+          <span className="text-sm font-medium text-foreground">{title}</span>
+          {filters?.[filterKey]?.length > 0 && (
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary text-primary-foreground">
+              {filters?.[filterKey]?.length}
+            </span>
+          )}
+        </div>
+        <Icon
+          name={expandedSections?.[filterKey] ? 'ChevronUp' : 'ChevronDown'}
+          size={16}
+          className="text-muted-foreground"
+        />
+      </button>
+      {expandedSections?.[filterKey] && (
+        <div className="px-4 py-3 space-y-2 bg-muted/30">
+          {showSearch && (
+            <div className="relative mb-3">
+              <input
+                type="text"
+                placeholder={`Search ${title.toLowerCase()}...`}
+                value={searchQuery}
+                onChange={onSearchChange}
+                className="w-full px-3 py-2 pl-9 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+              <Icon 
+                name="Search" 
+                size={16} 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" 
+              />
+            </div>
+          )}
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2"></div>
+              <span className="text-xs text-muted-foreground">Loading...</span>
+            </div>
+          ) : items?.length === 0 ? (
+            <div className="text-center py-4">
+              <span className="text-xs text-muted-foreground">No categories available</span>
+            </div>
+          ) : (
+            items?.map((item) => (
+              <div key={item?.value} className="flex items-center justify-between">
+                <Checkbox
+                  label={item?.label}
+                  checked={filters?.[filterKey]?.includes(item?.value) || false}
+                  onChange={() => handleCheckboxChange(filterKey, item?.value)}
+                  size="sm"
+                />
+                {item?.count !== null && (
+                  <span className="text-xs text-muted-foreground">{item?.count}</span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
 
 const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   const [expandedSections, setExpandedSections] = useState({
@@ -12,23 +97,26 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     status: true
   });
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev?.[section]
-    }));
-  };
-
-  const categories = [
-    { value: 'fashion', label: 'Fashion & Lifestyle', count: 145 },
-    { value: 'beauty', label: 'Beauty & Makeup', count: 98 },
-    { value: 'fitness', label: 'Fitness & Health', count: 76 },
-    { value: 'food', label: 'Food & Cooking', count: 54 },
-    { value: 'travel', label: 'Travel & Adventure', count: 43 },
-    { value: 'tech', label: 'Technology', count: 32 },
-    { value: 'parenting', label: 'Parenting & Family', count: 28 },
-    { value: 'entertainment', label: 'Entertainment', count: 21 }
+  // Provided categories from sheet_source column
+  const providedCategories = [
+    'Artist', 'Anchor', 'Barter skincare', 'Barter Skincare 2', 'Beauty', 'BizTalk', 'Blue', 'Bold', 'Brown', 'Child Creator', 'Comedian', 'Cooking', 'Couple Influ.', 'Couple and Love pages', 'Confusion', 'Creators', 'Cricket Influ.', 'Dance', 'Decor', 'Delhi Pages', 'Doctors', 'Down creator', 'Educator', 'eYellow', 'Fan Pages', 'Farmers', 'Female Creator', 'Female Model', 'Finance', 'Fitness', 'Food Vlogger', 'Gaming', 'Gods Pages', 'Gurugram Pages', 'Hyper-active influencer', 'Insta Celebs', 'Insta Edit Pages', 'Islamic Pages', 'Liners', 'Link error', 'Lifestyle/Fashion', 'Makeup Artist', 'Male Creator', 'Male Model', 'Marketing Pages', 'Medical and Health Awareness Pages', 'Meme Pages', 'Mixed', 'Mom influencer', 'Moto Insta', 'Motivational Speaker', 'Music Pages', 'News', 'Nutritionist', 'Nutritionist Pages', 'Pet Influencer', 'PhotoGrapher', 'Postcast & Info', 'Quotes & Motivation Pages', 'Red', 'Shopping Pages', 'Shopping/Product Review', 'Singer', 'Song lipsing', 'South creators', 'Tech', 'Travel', 'UGC CREATORS', 'Views Pages', 'Voice edit', 'Vlogger'
   ];
+
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+
+  useEffect(() => {
+    // Transform provided categories into the required format
+    const categoryOptions = providedCategories.map(category => ({
+      value: category, // Use the actual category name for API filtering
+      label: category,
+      count: null // We'll implement count later if needed
+    }));
+    
+    setCategories(categoryOptions);
+    setCategoriesLoading(false);
+  }, []);
 
   const cities = [
     { value: 'mumbai', label: 'Mumbai', count: 187 },
@@ -89,43 +177,21 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     return acc + (Array.isArray(curr) ? curr?.length : 0);
   }, 0);
 
-  const FilterSection = ({ title, items, filterKey, icon }) => (
-    <div className="border-b border-border">
-      <button
-        onClick={() => toggleSection(filterKey)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors duration-200"
-      >
-        <div className="flex items-center gap-2">
-          <Icon name={icon} size={18} color="var(--color-primary)" />
-          <span className="text-sm font-medium text-foreground">{title}</span>
-          {filters?.[filterKey]?.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary text-primary-foreground">
-              {filters?.[filterKey]?.length}
-            </span>
-          )}
-        </div>
-        <Icon
-          name={expandedSections?.[filterKey] ? 'ChevronUp' : 'ChevronDown'}
-          size={16}
-          className="text-muted-foreground"
-        />
-      </button>
-      {expandedSections?.[filterKey] && (
-        <div className="px-4 py-3 space-y-2 bg-muted/30">
-          {items?.map((item) => (
-            <div key={item?.value} className="flex items-center justify-between">
-              <Checkbox
-                label={item?.label}
-                checked={filters?.[filterKey]?.includes(item?.value) || false}
-                onChange={() => handleCheckboxChange(filterKey, item?.value)}
-                size="sm"
-              />
-              <span className="text-xs text-muted-foreground">{item?.count}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const handleCategorySearch = (e) => {
+    setCategorySearchQuery(e.target.value);
+  };
+
+  const filteredCategories = useMemo(() => 
+    categories.filter(category =>
+      category.label.toLowerCase().includes(categorySearchQuery.toLowerCase())
+    ), [categories, categorySearchQuery]
   );
 
   return (
@@ -152,39 +218,67 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <FilterSection
           title="Category"
-          items={categories}
+          items={filteredCategories}
           filterKey="category"
           icon="Tag"
+          loading={categoriesLoading}
+          showSearch={true}
+          searchQuery={categorySearchQuery}
+          onSearchChange={handleCategorySearch}
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
         />
         <FilterSection
           title="City"
           items={cities}
           filterKey="city"
           icon="MapPin"
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
         />
         <FilterSection
           title="Followers"
           items={followerRanges}
           filterKey="followers"
           icon="Users"
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
         />
         <FilterSection
           title="Engagement Rate"
           items={engagementRates}
           filterKey="engagement"
           icon="TrendingUp"
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
         />
         <FilterSection
           title="Tags"
           items={tags}
           filterKey="tags"
           icon="Bookmark"
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
         />
         <FilterSection
           title="Status"
           items={statusOptions}
           filterKey="status"
           icon="Activity"
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
         />
       </div>
       <div className="px-4 py-3 border-t border-border bg-muted/30">
