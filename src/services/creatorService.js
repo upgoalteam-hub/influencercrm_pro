@@ -61,6 +61,22 @@ export const creatorService = {
    * @param {string} options.sortDirection - 'asc' or 'desc'
    * @returns {Promise<Object>} Object with data, total count, and pagination info
    */
+  async getById(id) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('*')
+        ?.eq('id', id)
+        ?.single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching creator by ID:', error);
+      throw error;
+    }
+  },
+
   async getPaginated(options = {}) {
     try {
       const {
