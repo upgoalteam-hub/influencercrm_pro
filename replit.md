@@ -45,4 +45,9 @@ Required environment variables:
 - Build with `npm run build`
 
 ## Recent Changes
-- 2025-12-29: Configured for Replit environment (port 5000, allowed all hosts)
+- 2025-12-29: Fixed issues and optimized for Replit
+  - ✅ Fixed Tailwind CSS warning: Changed `duration-[200ms]` to `duration-200` in SavedFiltersDrawer
+  - ✅ Added autocomplete attributes to login form inputs (email, password) for better accessibility
+  - ✅ Removed development scripts (rocket.new) from index.html
+  - ✅ Updated HTML description meta tag
+  - ✅ Configured for Replit environment (port 5000, allowed all hosts)

@@ -106,6 +106,7 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
           required
           disabled={isLoading}
           className="mb-4"
+          autoComplete="email"
         />
       </div>
       <div className="relative">
@@ -120,6 +121,7 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
           required
           disabled={isLoading}
           className="mb-2"
+          autoComplete="current-password"
         />
         <button
           type="button"

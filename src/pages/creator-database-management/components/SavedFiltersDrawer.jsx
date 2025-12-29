@@ -53,7 +53,7 @@ const SavedFiltersDrawer = ({ onApplyFilter, currentFilters }) => {
         onClick={toggleDrawer}
         className={`
           fixed top-1/2 transform -translate-y-1/2 w-10 h-20 bg-primary text-primary-foreground rounded-l-lg shadow-xl 
-          flex items-center justify-center hover:bg-primary/90 hover:scale-105 transition-all duration-[200ms] ease-in-out z-[300] group
+          flex items-center justify-center hover:bg-primary/90 hover:scale-105 transition-all duration-200 ease-in-out z-[300] group
           ${isOpen ? 'right-[360px]' : 'right-0'}
         `}
         aria-label={isOpen ? "Close saved filters" : "Open saved filters"}
@@ -63,7 +63,7 @@ const SavedFiltersDrawer = ({ onApplyFilter, currentFilters }) => {
         <Icon 
           name={isOpen ? "ChevronRight" : "ChevronLeft"} 
           size={18} 
-          className={`transition-transform duration-[200ms] ${isOpen ? 'group-hover:translate-x-[2px]' : 'group-hover:translate-x-[-2px]'}`} 
+          className={`transition-transform duration-200 ${isOpen ? 'group-hover:translate-x-[2px]' : 'group-hover:translate-x-[-2px]'}`} 
         />
       </button>
 
@@ -80,7 +80,7 @@ const SavedFiltersDrawer = ({ onApplyFilter, currentFilters }) => {
       <div
         className={`
           fixed top-0 right-0 h-full w-[360px] bg-card border-l border-border shadow-xl z-[299]
-          transform transition-transform duration-[200ms] ease-in-out
+          transform transition-transform duration-200 ease-in-out
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}
         `}
       >
