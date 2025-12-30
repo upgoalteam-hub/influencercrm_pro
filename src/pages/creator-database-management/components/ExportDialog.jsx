@@ -3,12 +3,15 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { exportUtils } from '../../../utils/exportUtils';
+import { exportLogService } from '../../../services/exportLogService';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [] }) => {
   const [exportFormat, setExportFormat] = useState('excel');
   const [exportScope, setExportScope] = useState('selected');
+  const { userProfile } = useAuth();
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const creatorsToExport = exportScope === 'all' 
         ? creators 
@@ -23,6 +26,7 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
       const timestamp = new Date()?.toISOString()?.slice(0, 10);
       const filename = `creators-export-${timestamp}`;
 
+      // Perform the export
       switch (exportFormat) {
         case 'excel':
           exportUtils?.exportToExcel(formattedData, filename);
@@ -37,9 +41,36 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
           exportUtils?.exportToExcel(formattedData, filename);
       }
 
+      // Log the export activity
+      const username = userProfile?.name || userProfile?.email || 'Unknown User';
+      await exportLogService?.logExport({
+        username,
+        exportType: exportFormat,
+        exportScope,
+        recordCount: creatorsToExport?.length,
+        fileName: `${filename}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        additionalDetails: `Creator Database Export - ${exportScope === 'selected' ? 'Selected' : 'All'} Records`
+      });
+
       onClose();
     } catch (error) {
       console.error('Export failed:', error);
+      
+      // Log the export failure
+      try {
+        const username = userProfile?.name || userProfile?.email || 'Unknown User';
+        await exportLogService?.logExport({
+          username,
+          exportType: exportFormat,
+          exportScope,
+          recordCount: 0,
+          fileName: '',
+          additionalDetails: `Export Failed - ${error?.message || 'Unknown error'}`
+        });
+      } catch (logError) {
+        console.error('Failed to log export error:', logError);
+      }
+      
       alert(`Failed to export creators: ${error?.message}`);
     }
   };

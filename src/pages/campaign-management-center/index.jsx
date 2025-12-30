@@ -10,13 +10,14 @@ import CampaignToolbar from './components/CampaignToolbar';
 import CreateCampaignModal from './components/CreateCampaignModal';
 import { realtimeService } from '../../services/realtimeService';
 import { campaignService } from '../../services/campaignService';
-
 import { exportUtils } from '../../utils/exportUtils';
+import { exportLogService } from '../../services/exportLogService';
+import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/ui/Button';
-
 
 const CampaignManagementCenter = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [selectedCampaigns, setSelectedCampaigns] = useState([]);
@@ -625,7 +626,7 @@ const CampaignManagementCenter = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const campaignsToExport = filteredCampaigns?.length > 0 ? filteredCampaigns : campaigns;
       
@@ -650,9 +651,37 @@ const CampaignManagementCenter = () => {
       const filename = `campaigns-export-${timestamp}`;
 
       exportUtils?.exportToExcel(exportData, filename);
+
+      // Log the export activity
+      const username = user?.email || 'Unknown User';
+      await exportLogService?.logExport({
+        username,
+        exportType: 'excel',
+        exportScope: filteredCampaigns?.length > 0 ? 'filtered' : 'all',
+        recordCount: campaignsToExport?.length,
+        fileName: `${filename}.xlsx`,
+        additionalDetails: `Campaign Management Export - ${filteredCampaigns?.length > 0 ? 'Filtered Campaigns' : 'All Campaigns'}`
+      });
+
       alert(`Successfully exported ${campaignsToExport?.length} campaign records!`);
     } catch (error) {
       console.error('Export failed:', error);
+      
+      // Log the export failure
+      try {
+        const username = user?.email || 'Unknown User';
+        await exportLogService?.logExport({
+          username,
+          exportType: 'excel',
+          exportScope: 'unknown',
+          recordCount: 0,
+          fileName: '',
+          additionalDetails: `Campaign Export Failed - ${error?.message || 'Unknown error'}`
+        });
+      } catch (logError) {
+        console.error('Failed to log export error:', logError);
+      }
+      
       alert(`Failed to export campaigns: ${error?.message}`);
     }
   };
