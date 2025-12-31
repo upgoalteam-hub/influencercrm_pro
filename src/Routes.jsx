@@ -14,6 +14,7 @@ import CampaignManagementCenter from './pages/campaign-management-center';
 import BrandContactManagement from './pages/brand-contact-management';
 import BulkInstagramProcessor from './pages/bulk-instagram-processor';
 import SystemSettingsUserManagement from './pages/system-settings-user-management';
+import UserProfile from './pages/user-profile';
 
 const Routes = () => {
   return (
@@ -42,6 +43,7 @@ const Routes = () => {
             <Route path="/campaign-management-center" element={<RequireAuth><CampaignManagementCenter /></RequireAuth>} />
             <Route path="/bulk-instagram-processor" element={<RequireAuth><BulkInstagramProcessor /></RequireAuth>} />
             <Route path="/system-settings-user-management" element={<RequireAuth><SystemSettingsUserManagement /></RequireAuth>} />
+            <Route path="/user-profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
             <Route path="/logout" element={<LogoutRoute />} />
             <Route path="*" element={<NotFound />} />
           </RouterRoutes>

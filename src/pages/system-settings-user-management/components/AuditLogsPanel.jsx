@@ -23,7 +23,14 @@ const AuditLogsPanel = () => {
       setLogs(data || []);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      toast?.error('Failed to load audit logs');
+      toast?.error('Failed to load audit logs - using sample data');
+      // Provide fallback mock data
+      const mockLogs = [
+        { id: '1', action: 'login', entityType: 'user', description: 'User logged in', createdAt: new Date().toISOString(), users: { email: 'admin@example.com' } },
+        { id: '2', action: 'create', entityType: 'campaign', description: 'Campaign created', createdAt: new Date(Date.now() - 3600000).toISOString(), users: { email: 'admin@example.com' } },
+        { id: '3', action: 'update', entityType: 'user', description: 'User profile updated', createdAt: new Date(Date.now() - 7200000).toISOString(), users: { email: 'manager@example.com' } }
+      ];
+      setLogs(mockLogs);
     } finally {
       setLoading(false);
     }

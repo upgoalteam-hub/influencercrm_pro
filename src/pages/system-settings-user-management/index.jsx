@@ -20,29 +20,32 @@ const SystemSettingsUserManagement = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
+    <div className="min-h-screen bg-background">
+      <Sidebar 
+        isCollapsed={isSidebarCollapsed} 
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+      />
+      <Header isCollapsed={isSidebarCollapsed} />
+      
+      <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <div className="p-6 max-w-[1600px] mx-auto">
           {/* Page Header */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Shield className="w-8 h-8 text-purple-600" />
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3 mb-2">
+              <Shield className="w-8 h-8 text-primary" />
               System Settings & User Management
             </h1>
-            <p className="text-gray-600 mt-2">
+            <p className="text-muted-foreground">
               Configure system settings and manage user access controls
             </p>
           </div>
 
           {/* Tab Navigation */}
-          <div className="bg-white rounded-lg shadow-sm mb-6">
-            <div className="border-b border-gray-200">
+          <div className="bg-card border border-border rounded-lg shadow-sm mb-6">
+            <div className="border-b border-border">
               <nav className="flex space-x-8 px-6" aria-label="Tabs">
                 {tabs?.map((tab) => {
-                  const Icon = tab?.icon;
+                  const TabIcon = tab?.icon;
                   return (
                     <button
                       key={tab?.id}
@@ -50,11 +53,12 @@ const SystemSettingsUserManagement = () => {
                       className={`
                         flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
                         ${activeTab === tab?.id
-                          ? 'border-purple-600 text-purple-600' :'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-primary text-primary' 
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                         }
                       `}
                     >
-                      <Icon className="w-5 h-5" />
+                      <TabIcon className="w-5 h-5" />
                       {tab?.label}
                     </button>
                   );
@@ -64,13 +68,13 @@ const SystemSettingsUserManagement = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white rounded-lg shadow-sm">
+          <div className="bg-card border border-border rounded-lg shadow-sm">
             {activeTab === 'settings' && <SystemSettingsPanel />}
             {activeTab === 'users' && <UserManagementPanel />}
             {activeTab === 'audit' && <AuditLogsPanel />}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

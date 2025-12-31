@@ -43,6 +43,7 @@ const UserProfileDropdown = () => {
   };
 
   const handleProfile = () => {
+    navigate('/user-profile');
     setIsOpen(false);
   };
 
