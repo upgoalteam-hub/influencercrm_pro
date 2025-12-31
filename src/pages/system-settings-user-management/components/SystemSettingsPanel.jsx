@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Plus, Edit2, Trash2, Globe, Shield, Bell, DollarSign, Mail, RefreshCw } from 'lucide-react';
-import { getAllSettings, updateSetting, deleteSetting } from '../../../services/systemSettingsService';
+import { getAllSettings, updateSetting, deleteSetting, createSetting } from '../../../services/systemSettingsService';
 import toast from 'react-hot-toast';
 import Icon from '../../../components/AppIcon';
+import AddSettingModal from './AddSettingModal';
 
 
 const SystemSettingsPanel = () => {
@@ -66,6 +67,12 @@ const SystemSettingsPanel = () => {
       console.error('Error deleting setting:', error);
       toast?.error(error?.message || 'Failed to delete setting');
     }
+  };
+
+  const handleSettingAdded = (newSetting) => {
+    setSettings(prev => [newSetting, ...prev]);
+    setShowAddModal(false);
+    toast?.success('Setting added successfully');
   };
 
   const filteredSettings = selectedCategory === 'all' 
@@ -226,6 +233,14 @@ const SystemSettingsPanel = () => {
           })
         )}
       </div>
+
+      {/* Add Setting Modal */}
+      {showAddModal && (
+        <AddSettingModal
+          onClose={() => setShowAddModal(false)}
+          onSettingAdded={handleSettingAdded}
+        />
+      )}
     </div>
   );
 };
