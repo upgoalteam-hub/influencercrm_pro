@@ -31,7 +31,7 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   }, [isMobileOpen]);
 
   const navigation = [
-    { name: 'Executive Dashboard', href: '/', icon: Home },
+    { name: 'Executive Dashboard', href: '/executive-dashboard', icon: Home },
     { name: 'Creator Database', href: '/creator-database-management', icon: Database },
     { name: 'Campaign Management', href: '/campaign-management-center', icon: FolderKanban },
     { name: 'Payment Processing', href: '/payment-processing-center', icon: DollarSign },
