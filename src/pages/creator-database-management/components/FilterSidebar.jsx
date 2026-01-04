@@ -115,6 +115,10 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citySearchQuery, setCitySearchQuery] = useState('');
 
+  const [followers, setFollowers] = useState([]);
+  const [followersLoading, setFollowersLoading] = useState(true);
+  const [followersSearchQuery, setFollowersSearchQuery] = useState('');
+
   useEffect(() => {
     // Transform provided categories into the required format
     const categoryOptions = providedCategories.map(category => ({
@@ -159,14 +163,51 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     fetchCities();
   }, []);
 
-  const followerRanges = [
-    { value: '0-10k', label: '0 - 10K', count: 89 },
-    { value: '10k-50k', label: '10K - 50K', count: 156 },
-    { value: '50k-100k', label: '50K - 100K', count: 134 },
-    { value: '100k-500k', label: '100K - 500K', count: 98 },
-    { value: '500k-1m', label: '500K - 1M', count: 45 },
-    { value: '1m+', label: '1M+', count: 23 }
-  ];
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      try {
+        console.log('Fetching followers tiers from database...');
+        const uniqueFollowers = await creatorService.getUniqueValues('followers_tier');
+        console.log('Raw followers tiers from database:', uniqueFollowers);
+        console.log('Number of followers tiers found:', uniqueFollowers.length);
+        
+        // Debug: Check distribution
+        try {
+          const distribution = await creatorService.getFollowersTierDistribution();
+          console.log('Complete followers tier distribution:', distribution);
+        } catch (distError) {
+          console.log('Could not fetch distribution:', distError);
+        }
+        
+        const followerOptions = uniqueFollowers
+          .filter(follower => follower && follower.trim() !== '')
+          .map(follower => {
+            const normalizedValue = follower.trim();
+            return {
+              value: normalizedValue, // Use normalized value for API filtering
+              label: normalizedValue,
+              count: null
+            };
+          })
+          .filter((option, index, self) => 
+            index === self.findIndex((opt) => opt.value.toLowerCase() === option.value.toLowerCase())
+          ) // Remove duplicates (case-insensitive)
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Processed follower options:', followerOptions);
+        console.log('Number of processed followers:', followerOptions.length);
+        
+        setFollowers(followerOptions);
+      } catch (error) {
+        console.error('Error fetching followers:', error);
+        setFollowers([]);
+      } finally {
+        setFollowersLoading(false);
+      }
+    };
+
+    fetchFollowers();
+  }, []);
 
   const engagementRates = [
     { value: '0-2', label: '0% - 2%', count: 67 },
@@ -196,6 +237,20 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     const newValues = currentValues?.includes(value)
       ? currentValues?.filter(v => v !== value)
       : [...currentValues, value];
+    
+    // Debug logging for followers filter
+    if (filterType === 'followers') {
+      console.log('Followers filter change:', {
+        filterType,
+        value,
+        currentValues,
+        newValues,
+        valueType: typeof value,
+        valueTrimmed: `"${value}"`,
+        valueLength: value.length
+      });
+    }
+    
     onFilterChange(filterType, newValues);
   };
 
@@ -222,6 +277,10 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     setCitySearchQuery(e.target.value);
   };
 
+  const handleFollowersSearch = (e) => {
+    setFollowersSearchQuery(e.target.value);
+  };
+
   const filteredCategories = useMemo(() => 
     categories.filter(category =>
       category.label.toLowerCase().includes(categorySearchQuery.toLowerCase())
@@ -232,6 +291,12 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     cities.filter(city =>
       city.label.toLowerCase().includes(citySearchQuery.toLowerCase())
     ), [cities, citySearchQuery]
+  );
+
+  const filteredFollowers = useMemo(() => 
+    followers.filter(follower =>
+      follower.label.toLowerCase().includes(followersSearchQuery.toLowerCase())
+    ), [followers, followersSearchQuery]
   );
 
   return (
@@ -286,9 +351,13 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
         />
         <FilterSection
           title="Followers"
-          items={followerRanges}
+          items={filteredFollowers}
           filterKey="followers"
           icon="Users"
+          loading={followersLoading}
+          showSearch={true}
+          searchQuery={followersSearchQuery}
+          onSearchChange={handleFollowersSearch}
           expandedSections={expandedSections}
           toggleSection={toggleSection}
           filters={filters}

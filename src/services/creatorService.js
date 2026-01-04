@@ -94,6 +94,45 @@ export const creatorService = {
     }
   },
 
+  // Debug function to check followers_tier distribution
+  async getFollowersTierDistribution() {
+    try {
+      console.log('Fetching followers_tier distribution...');
+      
+      // Get all creators with their followers_tier
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('followers_tier')
+        ?.not('followers_tier', 'is', null);
+
+      if (error) throw error;
+
+      // Count occurrences of each followers_tier
+      const distribution = {};
+      data?.forEach(creator => {
+        const tier = creator?.followers_tier?.trim() || 'Unknown';
+        distribution[tier] = (distribution[tier] || 0) + 1;
+      });
+
+      console.log('Followers tier distribution:', distribution);
+      
+      // Find all variations that might be "0-10k"
+      const variations = Object.keys(distribution).filter(key => 
+        key.toLowerCase().includes('0-10k') || 
+        key.toLowerCase().includes('10k') ||
+        key.toLowerCase().includes('0-10')
+      );
+
+      console.log('Possible 0-10k variations found:', variations);
+      console.log('Counts for variations:', variations.map(v => ({ [v]: distribution[v] })));
+
+      return distribution;
+    } catch (error) {
+      console.error('Error fetching followers tier distribution:', error);
+      throw error;
+    }
+  },
+
   /**
    * Get paginated creators with server-side filtering and sorting
    * @param {Object} options - Pagination, filtering, and sorting options
@@ -172,7 +211,17 @@ export const creatorService = {
       }
 
       if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
-        query = query?.in('followers_tier', filters?.followers_tier);
+        console.log('Applying followers_tier filter:', filters?.followers_tier);
+        
+        // Normalize filter values for robust matching
+        const normalizedFilters = filters?.followers_tier.map(val => val?.toLowerCase().trim());
+        console.log('Normalized filter values:', normalizedFilters);
+        
+        // Use case-insensitive comparison with trimming
+        const filterConditions = normalizedFilters.map(val => `followers_tier.ilike.%${val}%`);
+        query = query?.or(filterConditions.join(','));
+        
+        console.log('Applied filter conditions:', filterConditions);
       }
 
       if (filters?.sheet_source && filters?.sheet_source?.length > 0) {
