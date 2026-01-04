@@ -64,22 +64,24 @@ const FilterSection = React.memo(({
             </div>
           ) : items?.length === 0 ? (
             <div className="text-center py-4">
-              <span className="text-xs text-muted-foreground">No categories available</span>
+              <span className="text-xs text-muted-foreground">No {title.toLowerCase()} available</span>
             </div>
           ) : (
-            items?.map((item) => (
-              <div key={item?.value} className="flex items-center justify-between">
-                <Checkbox
-                  label={item?.label}
-                  checked={filters?.[filterKey]?.includes(item?.value) || false}
-                  onChange={() => handleCheckboxChange(filterKey, item?.value)}
-                  size="sm"
-                />
-                {item?.count !== null && (
-                  <span className="text-xs text-muted-foreground">{item?.count}</span>
-                )}
-              </div>
-            ))
+            <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
+              {items?.map((item) => (
+                <div key={item?.value} className="flex items-center justify-between">
+                  <Checkbox
+                    label={item?.label}
+                    checked={filters?.[filterKey]?.includes(item?.value) || false}
+                    onChange={() => handleCheckboxChange(filterKey, item?.value)}
+                    size="sm"
+                  />
+                  {item?.count !== null && (
+                    <span className="text-xs text-muted-foreground">{item?.count}</span>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -98,13 +100,20 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   });
 
   // Provided categories from sheet_source column
-  const providedCategories = [
+  const allCategories = [
     'Artist', 'Anchor', 'Barter skincare', 'Barter Skincare 2', 'Beauty', 'BizTalk', 'Blue', 'Bold', 'Brown', 'Child Creator', 'Comedian', 'Cooking', 'Couple Influ.', 'Couple and Love pages', 'Confusion', 'Creators', 'Cricket Influ.', 'Dance', 'Decor', 'Delhi Pages', 'Doctors', 'Down creator', 'Educator', 'eYellow', 'Fan Pages', 'Farmers', 'Female Creator', 'Female Model', 'Finance', 'Fitness', 'Food Vlogger', 'Gaming', 'Gods Pages', 'Gurugram Pages', 'Hyper-active influencer', 'Insta Celebs', 'Insta Edit Pages', 'Islamic Pages', 'Liners', 'Link error', 'LifestyleFashion', 'Makeup Artist', 'Male Creator', 'Male Model', 'Marketing Pages', 'Medical and Health Awareness Pages', 'Meme Pages', 'Mixed', 'Mom influencer', 'Moto Insta', 'Motivational Speaker', 'Music Pages', 'News', 'Nutritionist', 'Nutritionist Pages', 'Pet Influencer', 'PhotoGrapher', 'Postcast & Info', 'Quotes & Motivation Pages', 'Red', 'Shopping Pages', 'Shopping/Product Review', 'Singer', 'Song lipsing', 'South creators', 'Tech', 'Travel', 'UGC CREATORS', 'Views Pages', 'Voice edit', 'Vlogger'
   ];
+
+  // Filter out categories containing "Pages"
+  const providedCategories = allCategories.filter(category => !category.includes('Pages'));
 
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
+
+  const [cities, setCities] = useState([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citySearchQuery, setCitySearchQuery] = useState('');
 
   useEffect(() => {
     // Transform provided categories into the required format
@@ -118,16 +127,37 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     setCategoriesLoading(false);
   }, []);
 
-  const cities = [
-    { value: 'mumbai', label: 'Mumbai', count: 187 },
-    { value: 'delhi', label: 'Delhi NCR', count: 156 },
-    { value: 'bangalore', label: 'Bangalore', count: 134 },
-    { value: 'pune', label: 'Pune', count: 89 },
-    { value: 'hyderabad', label: 'Hyderabad', count: 67 },
-    { value: 'chennai', label: 'Chennai', count: 54 },
-    { value: 'kolkata', label: 'Kolkata', count: 43 },
-    { value: 'ahmedabad', label: 'Ahmedabad', count: 38 }
-  ];
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        console.log('Fetching cities from database...');
+        const uniqueCities = await creatorService.getUniqueValues('city');
+        console.log('Raw cities from database:', uniqueCities);
+        console.log('Number of cities found:', uniqueCities.length);
+        
+        const cityOptions = uniqueCities
+          .filter(city => city && city.trim() !== '')
+          .map(city => ({
+            value: city, // Use actual city name for API filtering
+            label: city,
+            count: null
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Processed city options:', cityOptions);
+        console.log('Number of processed cities:', cityOptions.length);
+        
+        setCities(cityOptions);
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+        setCities([]);
+      } finally {
+        setCitiesLoading(false);
+      }
+    };
+
+    fetchCities();
+  }, []);
 
   const followerRanges = [
     { value: '0-10k', label: '0 - 10K', count: 89 },
@@ -188,10 +218,20 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     setCategorySearchQuery(e.target.value);
   };
 
+  const handleCitySearch = (e) => {
+    setCitySearchQuery(e.target.value);
+  };
+
   const filteredCategories = useMemo(() => 
     categories.filter(category =>
       category.label.toLowerCase().includes(categorySearchQuery.toLowerCase())
     ), [categories, categorySearchQuery]
+  );
+
+  const filteredCities = useMemo(() => 
+    cities.filter(city =>
+      city.label.toLowerCase().includes(citySearchQuery.toLowerCase())
+    ), [cities, citySearchQuery]
   );
 
   return (
@@ -232,9 +272,13 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
         />
         <FilterSection
           title="City"
-          items={cities}
+          items={filteredCities}
           filterKey="city"
           icon="MapPin"
+          loading={citiesLoading}
+          showSearch={true}
+          searchQuery={citySearchQuery}
+          onSearchChange={handleCitySearch}
           expandedSections={expandedSections}
           toggleSection={toggleSection}
           filters={filters}

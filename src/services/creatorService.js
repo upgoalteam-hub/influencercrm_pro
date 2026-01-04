@@ -34,15 +34,59 @@ export const creatorService = {
 
   async getUniqueValues(column) {
     try {
-      const { data, error } = await supabase
-        ?.from('creators')
-        ?.select(column)
-        ?.not(column, 'is', null)
-        ?.order(column);
+      console.log(`Fetching unique values for column: ${column}`);
+      
+      // Try to get all distinct values using RPC function for better performance
+      try {
+        const { data: rpcData, error: rpcError } = await supabase
+          ?.rpc('get_unique_column_values', { column_name: column });
+        
+        if (!rpcError && rpcData) {
+          console.log(`RPC data for ${column}:`, rpcData?.length, 'records');
+          const values = rpcData?.filter(Boolean);
+          console.log(`Unique values for ${column} via RPC:`, values?.length, 'records');
+          return values;
+        }
+      } catch (rpcErr) {
+        console.log('RPC method failed, falling back to standard query');
+      }
+      
+      // Fallback: Get all records in batches if needed
+      let allData = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          ?.from('creators')
+          ?.select(column)
+          ?.not(column, 'is', null)
+          ?.range(offset, offset + batchSize - 1);
 
-      if (error) throw error;
-      const values = data?.map(item => item?.[column])?.filter(Boolean);
+        console.log(`Batch data for ${column} (offset ${offset}):`, data?.length, 'records');
+        console.log(`Error for ${column}:`, error);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          offset += batchSize;
+          hasMore = data.length === batchSize; // Continue if we got a full batch
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log(`Total raw data for ${column}:`, allData?.length, 'records');
+      
+      const values = allData?.map(item => item?.[column])?.filter(Boolean);
+      console.log(`Filtered values for ${column}:`, values?.length, 'records');
+      
       const uniqueValues = [...new Set(values)];
+      console.log(`Unique values for ${column}:`, uniqueValues?.length, 'records');
+      console.log(`Sample unique values for ${column}:`, uniqueValues?.slice(0, 10));
+      
       return uniqueValues;
     } catch (error) {
       console.error(`Error fetching unique values for ${column}:`, error);
