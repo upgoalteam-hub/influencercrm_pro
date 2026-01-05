@@ -37,6 +37,9 @@ export default function CreatorDatabaseManagement() {
   const { userProfile } = useAuth();
   const userRole = userProfile?.role || 'Super Admin';
 
+  // State to track filtered count
+  const [filteredCreatorsCount, setFilteredCreatorsCount] = useState(0);
+
   // Updated state - no longer storing all creators
   const [creators, setCreators] = useState([]);
   const [totalCreatorsCount, setTotalCreatorsCount] = useState(0);
@@ -87,6 +90,7 @@ export default function CreatorDatabaseManagement() {
       // Only update state if data is valid
       setCreators(transformedData);
       setTotalCreatorsCount(result?.total || 0);
+      setFilteredCreatorsCount(result?.total || 0); // Update filtered count
       setTotalPages(result?.totalPages || 0);
       setIsInitialLoad(false);
     } catch (err) {
@@ -304,7 +308,7 @@ export default function CreatorDatabaseManagement() {
                 onFilterChange={handleFilterChange}
                 creatorCounts={{
                   total: totalCreatorsCount,
-                  filtered: totalCreatorsCount // Server-side filtering, so filtered = total for display
+                  filtered: filteredCreatorsCount
                 }}
               />
             </div>

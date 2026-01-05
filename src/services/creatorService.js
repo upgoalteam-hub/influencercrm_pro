@@ -213,15 +213,86 @@ export const creatorService = {
       if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
         console.log('Applying followers_tier filter:', filters?.followers_tier);
         
-        // Normalize filter values for robust matching
-        const normalizedFilters = filters?.followers_tier.map(val => val?.toLowerCase().trim());
-        console.log('Normalized filter values:', normalizedFilters);
+        // Check if "Not Found" is in filters to handle NULL values
+        const includesNotFound = filters?.followers_tier.some(val => 
+          val?.toLowerCase().trim() === 'not found'
+        );
         
-        // Use case-insensitive comparison with trimming
-        const filterConditions = normalizedFilters.map(val => `followers_tier.ilike.%${val}%`);
-        query = query?.or(filterConditions.join(','));
-        
-        console.log('Applied filter conditions:', filterConditions);
+        // Get all possible followers_tier values from database to check if all are selected
+        try {
+          const allPossibleValues = await this.getUniqueValues('followers_tier');
+          const normalizedFilters = filters?.followers_tier.map(val => val?.toLowerCase().trim());
+          const normalizedPossibleValues = allPossibleValues.map(val => val?.toLowerCase().trim()).filter(Boolean);
+          
+          // Add 'not found' to possible values if we're handling NULLs
+          if (includesNotFound) {
+            normalizedPossibleValues.push('not found');
+          }
+          
+          // Check if all possible values are selected (allowing for minor variations)
+          const allValuesSelected = normalizedPossibleValues.every(value => 
+            normalizedFilters.some(filter => filter === value || value.includes(filter) || filter.includes(value))
+          );
+          
+          console.log('All possible values:', normalizedPossibleValues);
+          console.log('Selected filters:', normalizedFilters);
+          console.log('All values selected:', allValuesSelected);
+          
+          // If all values are selected, don't apply filter to return complete dataset
+          if (allValuesSelected && normalizedPossibleValues.length > 0) {
+            console.log('All followers tiers selected - skipping filter to return all records');
+          } else {
+            // Build filter conditions for exact matching with case-insensitive comparison
+            const filterConditions = [];
+            
+            // Add non-null conditions
+            const nonNullFilters = normalizedFilters.filter(val => val !== 'not found');
+            if (nonNullFilters.length > 0) {
+              // Use exact matching with case-insensitive comparison
+              nonNullFilters.forEach(val => {
+                // Special handling for "0-10k" to catch variations
+                if (val === '0-10k') {
+                  filterConditions.push(`followers_tier.ilike.%0-10k%`);
+                  filterConditions.push(`followers_tier.ilike.%0-10 K%`);
+                  filterConditions.push(`followers_tier.ilike.%0-10K%`);
+                } else {
+                  filterConditions.push(`followers_tier.ilike.%${val}%`);
+                }
+              });
+            }
+            
+            // Add NULL condition if "Not Found" is selected
+            if (includesNotFound) {
+              filterConditions.push('followers_tier.is.null');
+            }
+            
+            if (filterConditions.length > 0) {
+              query = query?.or(filterConditions.join(','));
+              console.log('Applied filter conditions:', filterConditions);
+            }
+          }
+        } catch (error) {
+          console.log('Could not determine all possible values, applying filters normally');
+          // Fallback to original logic if we can't get all values
+          const normalizedFilters = filters?.followers_tier.map(val => val?.toLowerCase().trim());
+          const filterConditions = [];
+          
+          normalizedFilters.forEach(val => {
+            if (val === 'not found') {
+              filterConditions.push('followers_tier.is.null');
+            } else if (val === '0-10k') {
+              // Special handling for "0-10k" variations
+              filterConditions.push(`followers_tier.ilike.%0-10k%`);
+              filterConditions.push(`followers_tier.ilike.%0-10 K%`);
+              filterConditions.push(`followers_tier.ilike.%0-10K%`);
+            } else {
+              filterConditions.push(`followers_tier.ilike.%${val}%`);
+            }
+          });
+          
+          query = query?.or(filterConditions.join(','));
+          console.log('Fallback filter conditions:', filterConditions);
+        }
       }
 
       if (filters?.sheet_source && filters?.sheet_source?.length > 0) {
@@ -237,6 +308,15 @@ export const creatorService = {
       const { data, error, count } = await query;
 
       if (error) throw error;
+
+      // Debug logging for filtering results
+      if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
+        console.log('=== FILTERING DEBUG ===');
+        console.log('Applied filters:', filters?.followers_tier);
+        console.log('Query result count:', count);
+        console.log('Expected total count (from getCount):', await this.getCount());
+        console.log('====================');
+      }
 
       return {
         data: data || [],

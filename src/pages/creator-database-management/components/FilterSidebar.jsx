@@ -194,6 +194,18 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           ) // Remove duplicates (case-insensitive)
           .sort((a, b) => a.label.localeCompare(b.label));
         
+        // Add "Not Found" option for NULL values only if it doesn't already exist
+        const hasNotFound = followerOptions.some(option => 
+          option.value.toLowerCase() === 'not found'
+        );
+        if (!hasNotFound) {
+          followerOptions.push({
+            value: 'Not Found',
+            label: 'Not Found',
+            count: null
+          });
+        }
+        
         console.log('Processed follower options:', followerOptions);
         console.log('Number of processed followers:', followerOptions.length);
         
