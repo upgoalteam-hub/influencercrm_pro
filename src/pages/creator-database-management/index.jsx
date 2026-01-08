@@ -366,12 +366,11 @@ export default function CreatorDatabaseManagement() {
                   </Button>
                 </div>
               </div>
-
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <Input
                     type="search"
-                    placeholder="Search by name, Instagram handle, or email..."
+                    placeholder="Universal search: Search any field - name, city, @username, phone, email, ID..."
                     value={searchQuery}
                     onChange={handleSearchChange}
                   />

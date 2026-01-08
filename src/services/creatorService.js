@@ -194,10 +194,12 @@ export const creatorService = {
         ?.from('creators')
         ?.select(fields, { count: 'exact' });
 
-      // Apply search query
+      // Apply universal search query - search across ALL columns in table
       if (searchQuery) {
+        // Remove @ symbol from search query for username matching
+        const cleanSearchQuery = searchQuery.replace('@', '');
         query = query?.or(
-          `name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
+          `name.ilike.%${searchQuery}%,instagram_link.ilike.%${searchQuery}%,followers_tier.ilike.%${searchQuery}%,state.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%,whatsapp.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,username.ilike.%${cleanSearchQuery}%,sheet_source.ilike.%${searchQuery}%`
         );
       }
 
