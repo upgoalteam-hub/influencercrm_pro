@@ -329,5 +329,53 @@ export const creatorService = {
       console.error('Error fetching paginated creators:', error);
       throw error;
     }
+  },
+
+  async create(creatorData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.insert([creatorData])
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error creating creator:', error);
+      throw error;
+    }
+  },
+
+  async update(id, updateData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update(updateData)
+        ?.eq('id', id)
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating creator:', error);
+      throw error;
+    }
+  },
+
+  async delete(id) {
+    try {
+      const { error } = await supabase
+        ?.from('creators')
+        ?.delete()
+        ?.eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting creator:', error);
+      throw error;
+    }
   }
 };

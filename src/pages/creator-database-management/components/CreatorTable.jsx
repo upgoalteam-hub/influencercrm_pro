@@ -2,10 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import EditCreatorModal from './EditCreatorModal';
 
-const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole }) => {
+const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole, onCreatorUpdated }) => {
   const navigate = useNavigate();
   const [editingCell, setEditingCell] = useState(null);
+  const [editingCreator, setEditingCreator] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Memoize creators to prevent unnecessary re-renders
   const stableCreators = useMemo(() => {
@@ -40,6 +43,18 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
     }
     // Navigate with ID in URL for better shareability and browser history
     navigate(`/creator-profile-details/${creatorId}`);
+  };
+
+  const handleEditCreator = (creator) => {
+    setEditingCreator(creator);
+    setShowEditModal(true);
+  };
+
+  const handleCreatorUpdated = (updatedCreator) => {
+    // Notify parent component to update the data
+    onCreatorUpdated?.(updatedCreator);
+    setShowEditModal(false);
+    setEditingCreator(null);
   };
 
   const formatNumber = (num) => {
@@ -269,6 +284,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => handleEditCreator(creator)}
                       iconName="Edit"
                       iconSize={16}
                     />
@@ -279,6 +295,13 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
           })}
         </tbody>
       </table>
+      
+      <EditCreatorModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        creator={editingCreator}
+        onCreatorUpdated={handleCreatorUpdated}
+      />
     </div>
   );
 };

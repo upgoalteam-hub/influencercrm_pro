@@ -209,6 +209,18 @@ export default function CreatorDatabaseManagement() {
     fetchTotalCount();
   };
 
+  const handleCreatorUpdated = (updatedCreator) => {
+    // Update the creator in the local state for instant UI update
+    setCreators(prevCreators => 
+      prevCreators.map(creator => 
+        creator?.id === updatedCreator?.id ? { ...creator, ...updatedCreator } : creator
+      )
+    );
+    // Show success notification
+    // You could add a toast notification here
+    console.log('Creator updated successfully:', updatedCreator);
+  };
+
   // Debounced search handler
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   
@@ -396,6 +408,7 @@ export default function CreatorDatabaseManagement() {
                   onSort={handleSort}
                   sortConfig={sortConfig}
                   userRole={userRole}
+                  onCreatorUpdated={handleCreatorUpdated}
                 />
               </div>
             </div>
