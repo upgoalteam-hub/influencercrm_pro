@@ -379,5 +379,53 @@ export const creatorService = {
       console.error('Error deleting creator:', error);
       throw error;
     }
+  },
+
+  async bulkDelete(ids) {
+    try {
+      const { error } = await supabase
+        ?.from('creators')
+        ?.delete()
+        ?.in('id', ids);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error bulk deleting creators:', error);
+      throw error;
+    }
+  },
+
+  async updateCreator(id, updateData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update(updateData)
+        ?.eq('id', id)
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating creator:', error);
+      throw error;
+    }
+  },
+
+  async bulkUpdate(ids, updateData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update(updateData)
+        ?.in('id', ids)
+        ?.select();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error bulk updating creators:', error);
+      throw error;
+    }
   }
 };
