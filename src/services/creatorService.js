@@ -33,175 +33,103 @@ export const creatorService = {
     }
   },
 
-  /**
-   * Search creators by name, username, or email
-   * @param {string} query - Search query
-   * @returns {Promise<Array>} Filtered creators
-   */
-  async search(query) {
+  async getUniqueValues(column) {
     try {
-      const { data, error } = await supabase?.from('creators')?.select('*')?.or(`name.ilike.%${query}%,username.ilike.%${query}%,email.ilike.%${query}%`)?.order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      return data || [];
-    } catch (error) {
-      console.error('Error searching creators:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Filter creators by various criteria
-   * @param {Object} filters - Filter criteria (using exact database column names)
-   * @returns {Promise<Array>} Filtered creators
-   */
-  async filter(filters = {}) {
-    try {
-      let query = supabase?.from('creators')?.select('*');
-
-      if (filters?.city && filters?.city?.length > 0) {
-        query = query?.in('city', filters?.city);
-      }
-
-      if (filters?.state && filters?.state?.length > 0) {
-        query = query?.in('state', filters?.state);
-      }
-
-      if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
-        query = query?.in('followers_tier', filters?.followers_tier);
-      }
-
-      if (filters?.sheet_source && filters?.sheet_source?.length > 0) {
-        query = query?.in('sheet_source', filters?.sheet_source);
-      }
-
-      const { data, error } = await query?.order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      return data || [];
-    } catch (error) {
-      console.error('Error filtering creators:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get a single creator by ID
-   * @param {string} id - Creator ID
-   * @returns {Promise<Object>} Creator object with exact database column names
-   */
-  async getById(id) {
-    try {
-      const { data, error } = await supabase?.from('creators')?.select('*')?.eq('id', id)?.single();
-
-      if (error) throw error;
-
-      return data;
-    } catch (error) {
-      console.error('Error fetching creator:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Search creators by multiple Instagram links (bulk search)
-   * @param {Array<string>} instagramLinks - Array of Instagram links to search
-   * @returns {Promise<Object>} Object with found creators and not found links
-   */
-  async searchByInstagramLinks(instagramLinks) {
-    try {
-      if (!instagramLinks || instagramLinks?.length === 0) {
-        return { found: [], notFound: [] };
-      }
-
-      // Clean and normalize Instagram links (remove trailing slashes, etc.)
-      const cleanedLinks = instagramLinks?.map(link => link?.trim()?.replace(/\/$/, ''));
-
-      // Search for creators with matching Instagram links
-      const { data, error } = await supabase
-        ?.from('creators')
-        ?.select('*')
-        ?.in('instagram_link', cleanedLinks)
-        ?.order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const foundCreators = data || [];
+      console.log(`Fetching unique values for column: ${column}`);
       
-      // Determine which links were not found
-      const foundLinks = foundCreators?.map(creator => creator?.instagram_link?.trim()?.replace(/\/$/, ''));
-      const notFoundLinks = cleanedLinks?.filter(link => !foundLinks?.includes(link));
+      // Try to get all distinct values using RPC function for better performance
+      try {
+        const { data: rpcData, error: rpcError } = await supabase
+          ?.rpc('get_unique_column_values', { column_name: column });
+        
+        if (!rpcError && rpcData) {
+          console.log(`RPC data for ${column}:`, rpcData?.length, 'records');
+          const values = rpcData?.filter(Boolean);
+          console.log(`Unique values for ${column} via RPC:`, values?.length, 'records');
+          return values;
+        }
+      } catch (rpcErr) {
+        console.log('RPC method failed, falling back to standard query');
+      }
+      
+      // Fallback: Get all records in batches if needed
+      let allData = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          ?.from('creators')
+          ?.select(column)
+          ?.not(column, 'is', null)
+          ?.range(offset, offset + batchSize - 1);
 
-      return {
-        found: foundCreators,
-        notFound: notFoundLinks
-      };
-    } catch (error) {
-      console.error('Error searching creators by Instagram links:', error);
-      throw error;
-    }
-  },
+        console.log(`Batch data for ${column} (offset ${offset}):`, data?.length, 'records');
+        console.log(`Error for ${column}:`, error);
 
-  /**
-   * Search creators by multiple usernames (bulk search)
-   * @param {Array<string>} usernames - Array of usernames to search
-   * @returns {Promise<Object>} Object with found creators and not found usernames
-   */
-  async searchByUsernames(usernames) {
-    try {
-      if (!usernames || usernames?.length === 0) {
-        return { found: [], notFound: [] };
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          offset += batchSize;
+          hasMore = data.length === batchSize; // Continue if we got a full batch
+        } else {
+          hasMore = false;
+        }
       }
 
-      // Clean usernames (remove @ if present)
-      const cleanedUsernames = usernames?.map(u => u?.trim()?.replace(/^@/, ''));
-
-      // Search for creators with matching usernames
-      const { data, error } = await supabase
-        ?.from('creators')
-        ?.select('*')
-        ?.in('username', cleanedUsernames)
-        ?.order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const foundCreators = data || [];
+      console.log(`Total raw data for ${column}:`, allData?.length, 'records');
       
-      // Determine which usernames were not found
-      const foundUsernames = foundCreators?.map(creator => creator?.username?.trim());
-      const notFoundUsernames = cleanedUsernames?.filter(u => !foundUsernames?.includes(u));
-
-      return {
-        found: foundCreators,
-        notFound: notFoundUsernames
-      };
-    } catch (error) {
-      console.error('Error searching creators by usernames:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Create a new creator
-   * @param {Object} creatorData - Creator data (using exact database column names)
-   * @returns {Promise<Object>} Created creator object
-   */
-  async create(creatorData) {
-    try {
-      const { data, error } = await supabase
-        ?.from('creators')
-        ?.select(column)
-        ?.not(column, 'is', null)
-        ?.order(column);
-
-      if (error) throw error;
-      const values = data?.map(item => item?.[column])?.filter(Boolean);
+      const values = allData?.map(item => item?.[column])?.filter(Boolean);
+      console.log(`Filtered values for ${column}:`, values?.length, 'records');
+      
       const uniqueValues = [...new Set(values)];
+      console.log(`Unique values for ${column}:`, uniqueValues?.length, 'records');
+      console.log(`Sample unique values for ${column}:`, uniqueValues?.slice(0, 10));
+      
       return uniqueValues;
     } catch (error) {
       console.error(`Error fetching unique values for ${column}:`, error);
+      throw error;
+    }
+  },
+
+  // Debug function to check followers_tier distribution
+  async getFollowersTierDistribution() {
+    try {
+      console.log('Fetching followers_tier distribution...');
+      
+      // Get all creators with their followers_tier
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('followers_tier')
+        ?.not('followers_tier', 'is', null);
+
+      if (error) throw error;
+
+      // Count occurrences of each followers_tier
+      const distribution = {};
+      data?.forEach(creator => {
+        const tier = creator?.followers_tier?.trim() || 'Unknown';
+        distribution[tier] = (distribution[tier] || 0) + 1;
+      });
+
+      console.log('Followers tier distribution:', distribution);
+      
+      // Find all variations that might be "0-10k"
+      const variations = Object.keys(distribution).filter(key => 
+        key.toLowerCase().includes('0-10k') || 
+        key.toLowerCase().includes('10k') ||
+        key.toLowerCase().includes('0-10')
+      );
+
+      console.log('Possible 0-10k variations found:', variations);
+      console.log('Counts for variations:', variations.map(v => ({ [v]: distribution[v] })));
+
+      return distribution;
+    } catch (error) {
+      console.error('Error fetching followers tier distribution:', error);
       throw error;
     }
   },
@@ -217,6 +145,22 @@ export const creatorService = {
    * @param {string} options.sortDirection - 'asc' or 'desc'
    * @returns {Promise<Object>} Object with data, total count, and pagination info
    */
+  async getById(id) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.select('*')
+        ?.eq('id', id)
+        ?.single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching creator by ID:', error);
+      throw error;
+    }
+  },
+
   async getPaginated(options = {}) {
     try {
       const {
@@ -251,10 +195,12 @@ export const creatorService = {
         ?.from('creators')
         ?.select(fields, { count: 'exact' });
 
-      // Apply search query
+      // Apply universal search query - search across ALL columns in table
       if (searchQuery) {
+        // Remove @ symbol from search query for username matching
+        const cleanSearchQuery = searchQuery.replace('@', '');
         query = query?.or(
-          `name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
+          `name.ilike.%${searchQuery}%,instagram_link.ilike.%${searchQuery}%,followers_tier.ilike.%${searchQuery}%,state.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%,whatsapp.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,username.ilike.%${cleanSearchQuery}%,sheet_source.ilike.%${searchQuery}%`
         );
       }
 
@@ -268,7 +214,88 @@ export const creatorService = {
       }
 
       if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
-        query = query?.in('followers_tier', filters?.followers_tier);
+        console.log('Applying followers_tier filter:', filters?.followers_tier);
+        
+        // Check if "Not Found" is in filters to handle NULL values
+        const includesNotFound = filters?.followers_tier.some(val => 
+          val?.toLowerCase().trim() === 'not found'
+        );
+        
+        // Get all possible followers_tier values from database to check if all are selected
+        try {
+          const allPossibleValues = await this.getUniqueValues('followers_tier');
+          const normalizedFilters = filters?.followers_tier.map(val => val?.toLowerCase().trim());
+          const normalizedPossibleValues = allPossibleValues.map(val => val?.toLowerCase().trim()).filter(Boolean);
+          
+          // Add 'not found' to possible values if we're handling NULLs
+          if (includesNotFound) {
+            normalizedPossibleValues.push('not found');
+          }
+          
+          // Check if all possible values are selected (allowing for minor variations)
+          const allValuesSelected = normalizedPossibleValues.every(value => 
+            normalizedFilters.some(filter => filter === value || value.includes(filter) || filter.includes(value))
+          );
+          
+          console.log('All possible values:', normalizedPossibleValues);
+          console.log('Selected filters:', normalizedFilters);
+          console.log('All values selected:', allValuesSelected);
+          
+          // If all values are selected, don't apply filter to return complete dataset
+          if (allValuesSelected && normalizedPossibleValues.length > 0) {
+            console.log('All followers tiers selected - skipping filter to return all records');
+          } else {
+            // Build filter conditions for exact matching with case-insensitive comparison
+            const filterConditions = [];
+            
+            // Add non-null conditions
+            const nonNullFilters = normalizedFilters.filter(val => val !== 'not found');
+            if (nonNullFilters.length > 0) {
+              // Use exact matching with case-insensitive comparison
+              nonNullFilters.forEach(val => {
+                // Special handling for "0-10k" to catch variations
+                if (val === '0-10k') {
+                  filterConditions.push(`followers_tier.ilike.%0-10k%`);
+                  filterConditions.push(`followers_tier.ilike.%0-10 K%`);
+                  filterConditions.push(`followers_tier.ilike.%0-10K%`);
+                } else {
+                  filterConditions.push(`followers_tier.ilike.%${val}%`);
+                }
+              });
+            }
+            
+            // Add NULL condition if "Not Found" is selected
+            if (includesNotFound) {
+              filterConditions.push('followers_tier.is.null');
+            }
+            
+            if (filterConditions.length > 0) {
+              query = query?.or(filterConditions.join(','));
+              console.log('Applied filter conditions:', filterConditions);
+            }
+          }
+        } catch (error) {
+          console.log('Could not determine all possible values, applying filters normally');
+          // Fallback to original logic if we can't get all values
+          const normalizedFilters = filters?.followers_tier.map(val => val?.toLowerCase().trim());
+          const filterConditions = [];
+          
+          normalizedFilters.forEach(val => {
+            if (val === 'not found') {
+              filterConditions.push('followers_tier.is.null');
+            } else if (val === '0-10k') {
+              // Special handling for "0-10k" variations
+              filterConditions.push(`followers_tier.ilike.%0-10k%`);
+              filterConditions.push(`followers_tier.ilike.%0-10 K%`);
+              filterConditions.push(`followers_tier.ilike.%0-10K%`);
+            } else {
+              filterConditions.push(`followers_tier.ilike.%${val}%`);
+            }
+          });
+          
+          query = query?.or(filterConditions.join(','));
+          console.log('Fallback filter conditions:', filterConditions);
+        }
       }
 
       if (filters?.sheet_source && filters?.sheet_source?.length > 0) {
@@ -285,6 +312,15 @@ export const creatorService = {
 
       if (error) throw error;
 
+      // Debug logging for filtering results
+      if (filters?.followers_tier && filters?.followers_tier?.length > 0) {
+        console.log('=== FILTERING DEBUG ===');
+        console.log('Applied filters:', filters?.followers_tier);
+        console.log('Query result count:', count);
+        console.log('Expected total count (from getCount):', await this.getCount());
+        console.log('====================');
+      }
+
       return {
         data: data || [],
         total: count || 0,
@@ -298,70 +334,98 @@ export const creatorService = {
     }
   },
 
-  /**
-   * Get top performing creators based on performance score
-   * @param {number} limit - Number of top performers to return (default: 6)
-   * @returns {Promise<Array>} Top performing creators with performance scores
-   */
-  async getTopPerformers(limit = 6) {
+  async create(creatorData) {
     try {
-      // Fetch all creators and campaigns
-      const [allCreators, campaignsResult] = await Promise.all([
-        this.getAll({ limit: 1000 }), // Get all creators
-        supabase?.from('campaigns')?.select(`
-          *,
-          creators (
-            id,
-            name,
-            username,
-            instagram_link
-          )
-        `)?.order('created_at', { ascending: false })
-      ]);
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.insert([creatorData])
+        ?.select()
+        ?.single();
 
-      const allCampaigns = campaignsResult?.data || [];
-
-      // Calculate performance for all creators
-      const creatorsWithPerformance = calculateCreatorsPerformance(allCreators, allCampaigns);
-
-      // Get top performers
-      const topPerformers = getTopPerformers(creatorsWithPerformance, limit);
-
-      return topPerformers;
+      if (error) throw error;
+      return data;
     } catch (error) {
-      console.error('Error fetching top performers:', error);
+      console.error('Error creating creator:', error);
       throw error;
     }
   },
 
-  /**
-   * Update manual performance score for a creator
-   * @param {string} id - Creator ID
-   * @param {number} score - Performance score (0-10). Pass null to remove manual score and use calculated score.
-   * @returns {Promise<Object>} Updated creator object
-   */
-  async updatePerformanceScore(id, score) {
+  async update(id, updateData) {
     try {
-      // Validate score
-      if (score !== null && (isNaN(score) || score < 0 || score > 10)) {
-        throw new Error('Performance score must be between 0 and 10');
-      }
-
       const { data, error } = await supabase
         ?.from('creators')
-        ?.update({ 
-          manual_performance_score: score === null ? null : Math.round(score * 10) / 10,
-          updated_at: new Date().toISOString()
-        })
+        ?.update(updateData)
         ?.eq('id', id)
         ?.select()
         ?.single();
 
       if (error) throw error;
-
       return data;
     } catch (error) {
-      console.error('Error updating performance score:', error);
+      console.error('Error updating creator:', error);
+      throw error;
+    }
+  },
+
+  async delete(id) {
+    try {
+      const { error } = await supabase
+        ?.from('creators')
+        ?.delete()
+        ?.eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting creator:', error);
+      throw error;
+    }
+  },
+
+  async bulkDelete(ids) {
+    try {
+      const { error } = await supabase
+        ?.from('creators')
+        ?.delete()
+        ?.in('id', ids);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error bulk deleting creators:', error);
+      throw error;
+    }
+  },
+
+  async updateCreator(id, updateData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update(updateData)
+        ?.eq('id', id)
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating creator:', error);
+      throw error;
+    }
+  },
+
+  async bulkUpdate(ids, updateData) {
+    try {
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update(updateData)
+        ?.in('id', ids)
+        ?.select();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error bulk updating creators:', error);
       throw error;
     }
   }

@@ -2,10 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import EditCreatorModal from './EditCreatorModal';
 
-const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole }) => {
+const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole, onCreatorUpdated }) => {
   const navigate = useNavigate();
   const [editingCell, setEditingCell] = useState(null);
+  const [editingCreator, setEditingCreator] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Memoize creators to prevent unnecessary re-renders
   const stableCreators = useMemo(() => {
@@ -40,6 +43,18 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
     }
     // Navigate with ID in URL for better shareability and browser history
     navigate(`/creator-profile-details/${creatorId}`);
+  };
+
+  const handleEditCreator = (creator) => {
+    setEditingCreator(creator);
+    setShowEditModal(true);
+  };
+
+  const handleCreatorUpdated = (updatedCreator) => {
+    // Notify parent component to update the data
+    onCreatorUpdated?.(updatedCreator);
+    setShowEditModal(false);
+    setEditingCreator(null);
   };
 
   const formatNumber = (num) => {
@@ -101,7 +116,22 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   if (!stableCreators || stableCreators.length === 0) {
     return (
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full table-fixed" style={{ tableLayout: 'fixed' }}>
+        <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
+          <colgroup>
+            <col style={{ width: '48px', minWidth: '48px' }} /> {/* Checkbox */}
+            <col style={{ width: '80px', minWidth: '80px' }} /> {/* sr_no */}
+            <col style={{ width: '200px', minWidth: '150px' }} /> {/* name */}
+            <col style={{ width: '250px', minWidth: '200px' }} /> {/* instagram_link */}
+            <col style={{ width: '120px', minWidth: '100px' }} /> {/* followers_tier */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* state */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* city */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* whatsapp */}
+            <col style={{ width: '200px', minWidth: '150px' }} /> {/* email */}
+            <col style={{ width: '100px', minWidth: '80px' }} /> {/* gender */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* username */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* sheet_source */}
+            <col style={{ width: '120px', minWidth: '100px' }} /> {/* Actions */}
+          </colgroup>
           <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 w-12">
@@ -145,21 +175,21 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
 
   return (
     <div className="overflow-x-auto custom-scrollbar">
-      <table className="w-full table-fixed" style={{ tableLayout: 'fixed' }}>
+      <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
         <colgroup>
-          <col style={{ width: '48px' }} /> {/* Checkbox */}
-          <col style={{ width: '80px' }} /> {/* sr_no */}
-          <col style={{ width: '200px' }} /> {/* name */}
-          <col style={{ width: '250px' }} /> {/* instagram_link */}
-          <col style={{ width: '120px' }} /> {/* followers_tier */}
-          <col style={{ width: '150px' }} /> {/* state */}
-          <col style={{ width: '150px' }} /> {/* city */}
-          <col style={{ width: '150px' }} /> {/* whatsapp */}
-          <col style={{ width: '200px' }} /> {/* email */}
-          <col style={{ width: '100px' }} /> {/* gender */}
-          <col style={{ width: '150px' }} /> {/* username */}
-          <col style={{ width: '150px' }} /> {/* sheet_source */}
-          <col style={{ width: '120px' }} /> {/* Actions */}
+          <col style={{ width: '48px', minWidth: '48px' }} /> {/* Checkbox */}
+          <col style={{ width: '80px', minWidth: '80px' }} /> {/* sr_no */}
+          <col style={{ width: '200px', minWidth: '150px' }} /> {/* name */}
+          <col style={{ width: '250px', minWidth: '200px' }} /> {/* instagram_link */}
+          <col style={{ width: '120px', minWidth: '100px' }} /> {/* followers_tier */}
+          <col style={{ width: '150px', minWidth: '120px' }} /> {/* state */}
+          <col style={{ width: '150px', minWidth: '120px' }} /> {/* city */}
+          <col style={{ width: '150px', minWidth: '120px' }} /> {/* whatsapp */}
+          <col style={{ width: '200px', minWidth: '150px' }} /> {/* email */}
+          <col style={{ width: '100px', minWidth: '80px' }} /> {/* gender */}
+          <col style={{ width: '150px', minWidth: '120px' }} /> {/* username */}
+          <col style={{ width: '150px', minWidth: '120px' }} /> {/* sheet_source */}
+          <col style={{ width: '120px', minWidth: '100px' }} /> {/* Actions */}
         </colgroup>
         <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
           <tr>
@@ -269,6 +299,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => handleEditCreator(creator)}
                       iconName="Edit"
                       iconSize={16}
                     />
@@ -279,6 +310,13 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
           })}
         </tbody>
       </table>
+      
+      <EditCreatorModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        creator={editingCreator}
+        onCreatorUpdated={handleCreatorUpdated}
+      />
     </div>
   );
 };

@@ -64,22 +64,24 @@ const FilterSection = React.memo(({
             </div>
           ) : items?.length === 0 ? (
             <div className="text-center py-4">
-              <span className="text-xs text-muted-foreground">No categories available</span>
+              <span className="text-xs text-muted-foreground">No {title.toLowerCase()} available</span>
             </div>
           ) : (
-            items?.map((item) => (
-              <div key={item?.value} className="flex items-center justify-between">
-                <Checkbox
-                  label={item?.label}
-                  checked={filters?.[filterKey]?.includes(item?.value) || false}
-                  onChange={() => handleCheckboxChange(filterKey, item?.value)}
-                  size="sm"
-                />
-                {item?.count !== null && (
-                  <span className="text-xs text-muted-foreground">{item?.count}</span>
-                )}
-              </div>
-            ))
+            <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
+              {items?.map((item) => (
+                <div key={item?.value} className="flex items-center justify-between">
+                  <Checkbox
+                    label={item?.label}
+                    checked={filters?.[filterKey]?.includes(item?.value) || false}
+                    onChange={() => handleCheckboxChange(filterKey, item?.value)}
+                    size="sm"
+                  />
+                  {item?.count !== null && (
+                    <span className="text-xs text-muted-foreground">{item?.count}</span>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -98,13 +100,24 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   });
 
   // Provided categories from sheet_source column
-  const providedCategories = [
-    'Artist', 'Anchor', 'Barter skincare', 'Barter Skincare 2', 'Beauty', 'BizTalk', 'Blue', 'Bold', 'Brown', 'Child Creator', 'Comedian', 'Cooking', 'Couple Influ.', 'Couple and Love pages', 'Confusion', 'Creators', 'Cricket Influ.', 'Dance', 'Decor', 'Delhi Pages', 'Doctors', 'Down creator', 'Educator', 'eYellow', 'Fan Pages', 'Farmers', 'Female Creator', 'Female Model', 'Finance', 'Fitness', 'Food Vlogger', 'Gaming', 'Gods Pages', 'Gurugram Pages', 'Hyper-active influencer', 'Insta Celebs', 'Insta Edit Pages', 'Islamic Pages', 'Liners', 'Link error', 'Lifestyle/Fashion', 'Makeup Artist', 'Male Creator', 'Male Model', 'Marketing Pages', 'Medical and Health Awareness Pages', 'Meme Pages', 'Mixed', 'Mom influencer', 'Moto Insta', 'Motivational Speaker', 'Music Pages', 'News', 'Nutritionist', 'Nutritionist Pages', 'Pet Influencer', 'PhotoGrapher', 'Postcast & Info', 'Quotes & Motivation Pages', 'Red', 'Shopping Pages', 'Shopping/Product Review', 'Singer', 'Song lipsing', 'South creators', 'Tech', 'Travel', 'UGC CREATORS', 'Views Pages', 'Voice edit', 'Vlogger'
+  const allCategories = [
+    'Artist', 'Anchor', 'Barter skincare', 'Barter Skincare 2', 'Beauty', 'BizTalk', 'Blue', 'Bold', 'Brown', 'Child Creator', 'Comedian', 'Cooking', 'Couple Influ.', 'Couple and Love pages', 'Confusion', 'Creators', 'Cricket Influ.', 'Dance', 'Decor', 'Delhi Pages', 'Doctors', 'Down creator', 'Educator', 'eYellow', 'Fan Pages', 'Farmers', 'Female Creator', 'Female Model', 'Finance', 'Fitness', 'Food Vlogger', 'Gaming', 'Gods Pages', 'Gurugram Pages', 'Hyper-active influencer', 'Insta Celebs', 'Insta Edit Pages', 'Islamic Pages', 'Liners', 'Link error', 'LifestyleFashion', 'Makeup Artist', 'Male Creator', 'Male Model', 'Marketing Pages', 'Medical and Health Awareness Pages', 'Meme Pages', 'Mixed', 'Mom influencer', 'Moto Insta', 'Motivational Speaker', 'Music Pages', 'News', 'Nutritionist', 'Nutritionist Pages', 'Pet Influencer', 'PhotoGrapher', 'Postcast & Info', 'Quotes & Motivation Pages', 'Red', 'Shopping Pages', 'Shopping/Product Review', 'Singer', 'Song lipsing', 'South creators', 'Tech', 'Travel', 'UGC CREATORS', 'Views Pages', 'Voice edit', 'Vlogger'
   ];
+
+  // Filter out categories containing "Pages"
+  const providedCategories = allCategories.filter(category => !category.includes('Pages'));
 
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
+
+  const [cities, setCities] = useState([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citySearchQuery, setCitySearchQuery] = useState('');
+
+  const [followers, setFollowers] = useState([]);
+  const [followersLoading, setFollowersLoading] = useState(true);
+  const [followersSearchQuery, setFollowersSearchQuery] = useState('');
 
   useEffect(() => {
     // Transform provided categories into the required format
@@ -118,25 +131,127 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     setCategoriesLoading(false);
   }, []);
 
-  const cities = [
-    { value: 'mumbai', label: 'Mumbai', count: 187 },
-    { value: 'delhi', label: 'Delhi NCR', count: 156 },
-    { value: 'bangalore', label: 'Bangalore', count: 134 },
-    { value: 'pune', label: 'Pune', count: 89 },
-    { value: 'hyderabad', label: 'Hyderabad', count: 67 },
-    { value: 'chennai', label: 'Chennai', count: 54 },
-    { value: 'kolkata', label: 'Kolkata', count: 43 },
-    { value: 'ahmedabad', label: 'Ahmedabad', count: 38 }
-  ];
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        console.log('Fetching cities from database...');
+        const uniqueCities = await creatorService.getUniqueValues('city');
+        console.log('Raw cities from database:', uniqueCities);
+        console.log('Number of cities found:', uniqueCities.length);
+        
+        const cityOptions = uniqueCities
+          .filter(city => city && city.trim() !== '')
+          .map(city => ({
+            value: city, // Use actual city name for API filtering
+            label: city,
+            count: null
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Processed city options:', cityOptions);
+        console.log('Number of processed cities:', cityOptions.length);
+        
+        setCities(cityOptions);
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+        setCities([]);
+      } finally {
+        setCitiesLoading(false);
+      }
+    };
 
-  const followerRanges = [
-    { value: '0-10k', label: '0 - 10K', count: 89 },
-    { value: '10k-50k', label: '10K - 50K', count: 156 },
-    { value: '50k-100k', label: '50K - 100K', count: 134 },
-    { value: '100k-500k', label: '100K - 500K', count: 98 },
-    { value: '500k-1m', label: '500K - 1M', count: 45 },
-    { value: '1m+', label: '1M+', count: 23 }
-  ];
+    fetchCities();
+  }, []);
+
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      try {
+        console.log('Fetching followers tiers from database...');
+        const uniqueFollowers = await creatorService.getUniqueValues('followers_tier');
+        console.log('Raw followers tiers from database:', uniqueFollowers);
+        console.log('Number of followers tiers found:', uniqueFollowers.length);
+        
+        // Debug: Check distribution
+        try {
+          const distribution = await creatorService.getFollowersTierDistribution();
+          console.log('Complete followers tier distribution:', distribution);
+        } catch (distError) {
+          console.log('Could not fetch distribution:', distError);
+        }
+        
+        // Define the desired order for followers tiers
+        const desiredOrder = [
+          '0-10k',
+          '10K-50K', 
+          '50K-100K',
+          '100K-250K',
+          '250K-500K',
+          '500K-1M',
+          '1M+',
+          'Not Found'
+        ];
+        
+        const followerOptions = uniqueFollowers
+          .filter(follower => follower && follower.trim() !== '')
+          .map(follower => {
+            const normalizedValue = follower.trim();
+            return {
+              value: normalizedValue, // Use normalized value for API filtering
+              label: normalizedValue,
+              count: null
+            };
+          })
+          .filter((option, index, self) => 
+            index === self.findIndex((opt) => opt.value.toLowerCase() === option.value.toLowerCase())
+          ) // Remove duplicates (case-insensitive)
+          .sort((a, b) => {
+            // Custom sorting based on desired order
+            const aIndex = desiredOrder.findIndex(order => 
+              order.toLowerCase() === a.value.toLowerCase()
+            );
+            const bIndex = desiredOrder.findIndex(order => 
+              order.toLowerCase() === b.value.toLowerCase()
+            );
+            
+            // If both items are in desired order, sort by their position
+            if (aIndex !== -1 && bIndex !== -1) {
+              return aIndex - bIndex;
+            }
+            
+            // If only one item is in desired order, prioritize it
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            
+            // If neither is in desired order, sort alphabetically
+            return a.label.localeCompare(b.label);
+          });
+        
+        // Add "Not Found" option for NULL values only if it doesn't already exist
+        const hasNotFound = followerOptions.some(option => 
+          option.value.toLowerCase() === 'not found'
+        );
+        if (!hasNotFound) {
+          followerOptions.push({
+            value: 'Not Found',
+            label: 'Not Found',
+            count: null
+          });
+        }
+        
+        console.log('Processed follower options:', followerOptions);
+        console.log('Number of processed followers:', followerOptions.length);
+        
+        setFollowers(followerOptions);
+      } catch (error) {
+        console.error('Error fetching followers:', error);
+        setFollowers([]);
+      } finally {
+        setFollowersLoading(false);
+      }
+    };
+
+    fetchFollowers();
+  }, []);
 
   const engagementRates = [
     { value: '0-2', label: '0% - 2%', count: 67 },
@@ -166,6 +281,20 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     const newValues = currentValues?.includes(value)
       ? currentValues?.filter(v => v !== value)
       : [...currentValues, value];
+    
+    // Debug logging for followers filter
+    if (filterType === 'followers') {
+      console.log('Followers filter change:', {
+        filterType,
+        value,
+        currentValues,
+        newValues,
+        valueType: typeof value,
+        valueTrimmed: `"${value}"`,
+        valueLength: value.length
+      });
+    }
+    
     onFilterChange(filterType, newValues);
   };
 
@@ -188,10 +317,30 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     setCategorySearchQuery(e.target.value);
   };
 
+  const handleCitySearch = (e) => {
+    setCitySearchQuery(e.target.value);
+  };
+
+  const handleFollowersSearch = (e) => {
+    setFollowersSearchQuery(e.target.value);
+  };
+
   const filteredCategories = useMemo(() => 
     categories.filter(category =>
       category.label.toLowerCase().includes(categorySearchQuery.toLowerCase())
     ), [categories, categorySearchQuery]
+  );
+
+  const filteredCities = useMemo(() => 
+    cities.filter(city =>
+      city.label.toLowerCase().includes(citySearchQuery.toLowerCase())
+    ), [cities, citySearchQuery]
+  );
+
+  const filteredFollowers = useMemo(() => 
+    followers.filter(follower =>
+      follower.label.toLowerCase().includes(followersSearchQuery.toLowerCase())
+    ), [followers, followersSearchQuery]
   );
 
   return (
@@ -232,9 +381,13 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
         />
         <FilterSection
           title="City"
-          items={cities}
+          items={filteredCities}
           filterKey="city"
           icon="MapPin"
+          loading={citiesLoading}
+          showSearch={true}
+          searchQuery={citySearchQuery}
+          onSearchChange={handleCitySearch}
           expandedSections={expandedSections}
           toggleSection={toggleSection}
           filters={filters}
@@ -242,9 +395,13 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
         />
         <FilterSection
           title="Followers"
-          items={followerRanges}
+          items={filteredFollowers}
           filterKey="followers"
           icon="Users"
+          loading={followersLoading}
+          showSearch={true}
+          searchQuery={followersSearchQuery}
+          onSearchChange={handleFollowersSearch}
           expandedSections={expandedSections}
           toggleSection={toggleSection}
           filters={filters}

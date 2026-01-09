@@ -5,6 +5,8 @@ import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { exportUtils } from '../../../utils/exportUtils';
+import { exportLogService } from '../../../services/exportLogService';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ExportReportModal = ({ isOpen, onClose, onExport, payments = [] }) => {
   const [exportConfig, setExportConfig] = useState({
@@ -14,6 +16,7 @@ const ExportReportModal = ({ isOpen, onClose, onExport, payments = [] }) => {
     includeStatus: ['pending', 'processing', 'paid', 'overdue'],
     includeFields: ['creator', 'campaign', 'amount', 'dueDate', 'status', 'reference']
   });
+  const { user } = useAuth();
 
   const formatOptions = [
     { value: 'excel', label: 'Excel (.xlsx)' },
@@ -57,7 +60,7 @@ const ExportReportModal = ({ isOpen, onClose, onExport, payments = [] }) => {
     }));
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       // Get payments to export
       const paymentsToExport = payments?.length > 0 ? payments : [];
@@ -109,10 +112,41 @@ const ExportReportModal = ({ isOpen, onClose, onExport, payments = [] }) => {
           exportUtils?.exportToExcel(filteredData, filename);
       }
 
+      // Log the export activity
+      const username = user?.email || 'Unknown User';
+      const dateRange = (exportConfig?.dateFrom || exportConfig?.dateTo) 
+        ? ` ${exportConfig?.dateFrom || ''} to ${exportConfig?.dateTo || ''}` 
+        : '';
+      
+      await exportLogService?.logExport({
+        username,
+        exportType: exportConfig?.format,
+        exportScope: 'filtered',
+        recordCount: filteredData?.length,
+        fileName: `${filename}.${exportConfig?.format === 'excel' ? 'xlsx' : exportConfig?.format}`,
+        additionalDetails: `Payment Report Export${dateRange} - Fields: ${exportConfig?.includeFields?.join(', ')} - Status: ${exportConfig?.includeStatus?.join(', ')}`
+      });
+
       onExport?.(exportConfig);
       onClose();
     } catch (error) {
       console.error('Export failed:', error);
+      
+      // Log the export failure
+      try {
+        const username = user?.email || 'Unknown User';
+        await exportLogService?.logExport({
+          username,
+          exportType: exportConfig?.format,
+          exportScope: 'filtered',
+          recordCount: 0,
+          fileName: '',
+          additionalDetails: `Payment Report Export Failed - ${error?.message || 'Unknown error'}`
+        });
+      } catch (logError) {
+        console.error('Failed to log export error:', logError);
+      }
+      
       alert(`Failed to export report: ${error?.message}`);
     }
   };

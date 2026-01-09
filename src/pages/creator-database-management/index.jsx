@@ -13,6 +13,11 @@ import ExportDialog from './components/ExportDialog';
 import Select from '../../components/ui/Select';
 import AddCreatorModal from './components/AddCreatorModal';
 import Pagination from '../../components/ui/Pagination';
+import BulkCategoryModal from './components/BulkCategoryModal';
+import BulkTagsModal from './components/BulkTagsModal';
+import BulkStatusModal from './components/BulkStatusModal';
+import BulkCampaignModal from './components/BulkCampaignModal';
+import BulkDeleteModal from './components/BulkDeleteModal';
 import { creatorService } from '../../services/creatorService';
 import { realtimeService } from '../../services/realtimeService';
 
@@ -34,8 +39,16 @@ export default function CreatorDatabaseManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [showAddCreatorModal, setShowAddCreatorModal] = useState(false);
+  const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
+  const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [showBulkCampaignModal, setShowBulkCampaignModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const { userProfile } = useAuth();
   const userRole = userProfile?.role || 'Super Admin';
+
+  // State to track filtered count
+  const [filteredCreatorsCount, setFilteredCreatorsCount] = useState(0);
 
   // Updated state - no longer storing all creators
   const [creators, setCreators] = useState([]);
@@ -87,6 +100,7 @@ export default function CreatorDatabaseManagement() {
       // Only update state if data is valid
       setCreators(transformedData);
       setTotalCreatorsCount(result?.total || 0);
+      setFilteredCreatorsCount(result?.total || 0); // Update filtered count
       setTotalPages(result?.totalPages || 0);
       setIsInitialLoad(false);
     } catch (err) {
@@ -189,8 +203,33 @@ export default function CreatorDatabaseManagement() {
 
   const handleBulkAction = (action) => {
     console.log('Bulk action:', action, 'for creators:', selectedCreators);
-    if (action === 'export') {
-      setShowExportDialog(true);
+    
+    if (selectedCreators?.length === 0) {
+      console.warn('No creators selected for bulk action');
+      return;
+    }
+
+    switch (action) {
+      case 'export':
+        setShowExportDialog(true);
+        break;
+      case 'categorize':
+        setShowBulkCategoryModal(true);
+        break;
+      case 'addTags':
+        setShowBulkTagsModal(true);
+        break;
+      case 'changeStatus':
+        setShowBulkStatusModal(true);
+        break;
+      case 'assignCampaign':
+        setShowBulkCampaignModal(true);
+        break;
+      case 'delete':
+        setShowBulkDeleteModal(true);
+        break;
+      default:
+        console.warn('Unknown bulk action:', action);
     }
   };
 
@@ -203,6 +242,18 @@ export default function CreatorDatabaseManagement() {
     setCurrentPage(1);
     fetchCreators();
     fetchTotalCount();
+  };
+
+  const handleCreatorUpdated = (updatedCreator) => {
+    // Update the creator in the local state for instant UI update
+    setCreators(prevCreators => 
+      prevCreators.map(creator => 
+        creator?.id === updatedCreator?.id ? { ...creator, ...updatedCreator } : creator
+      )
+    );
+    // Show success notification
+    // You could add a toast notification here
+    console.log('Creator updated successfully:', updatedCreator);
   };
 
   // Debounced search handler
@@ -304,7 +355,7 @@ export default function CreatorDatabaseManagement() {
                 onFilterChange={handleFilterChange}
                 creatorCounts={{
                   total: totalCreatorsCount,
-                  filtered: totalCreatorsCount // Server-side filtering, so filtered = total for display
+                  filtered: filteredCreatorsCount
                 }}
               />
             </div>
@@ -350,12 +401,11 @@ export default function CreatorDatabaseManagement() {
                   </Button>
                 </div>
               </div>
-
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <Input
                     type="search"
-                    placeholder="Search by name, Instagram handle, or email..."
+                    placeholder="Universal search: Search any field - name, city, @username, phone, email, ID..."
                     value={searchQuery}
                     onChange={handleSearchChange}
                   />
@@ -392,6 +442,7 @@ export default function CreatorDatabaseManagement() {
                   onSort={handleSort}
                   sortConfig={sortConfig}
                   userRole={userRole}
+                  onCreatorUpdated={handleCreatorUpdated}
                 />
               </div>
             </div>
@@ -428,6 +479,51 @@ export default function CreatorDatabaseManagement() {
         isOpen={showAddCreatorModal}
         onClose={() => setShowAddCreatorModal(false)}
         onCreatorAdded={handleCreatorAdded}
+      />
+      <BulkCategoryModal
+        isOpen={showBulkCategoryModal}
+        onClose={() => setShowBulkCategoryModal(false)}
+        selectedCreatorIds={selectedCreators}
+        onBulkUpdate={() => {
+          fetchCreators();
+          setSelectedCreators([]);
+        }}
+      />
+      <BulkTagsModal
+        isOpen={showBulkTagsModal}
+        onClose={() => setShowBulkTagsModal(false)}
+        selectedCreatorIds={selectedCreators}
+        onBulkUpdate={() => {
+          fetchCreators();
+          setSelectedCreators([]);
+        }}
+      />
+      <BulkStatusModal
+        isOpen={showBulkStatusModal}
+        onClose={() => setShowBulkStatusModal(false)}
+        selectedCreatorIds={selectedCreators}
+        onBulkUpdate={() => {
+          fetchCreators();
+          setSelectedCreators([]);
+        }}
+      />
+      <BulkCampaignModal
+        isOpen={showBulkCampaignModal}
+        onClose={() => setShowBulkCampaignModal(false)}
+        selectedCreatorIds={selectedCreators}
+        onBulkUpdate={() => {
+          fetchCreators();
+          setSelectedCreators([]);
+        }}
+      />
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        selectedCreatorIds={selectedCreators}
+        onBulkUpdate={() => {
+          fetchCreators();
+          setSelectedCreators([]);
+        }}
       />
     </div>
   );

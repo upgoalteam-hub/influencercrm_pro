@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import { creatorService } from '../../../services/creatorService';
 
-const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
+const EditCreatorModal = ({ isOpen, onClose, creator, onCreatorUpdated }) => {
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -20,8 +20,42 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Initialize form data when creator changes
+  useEffect(() => {
+    if (creator) {
+      setFormData({
+        name: creator?.name || '',
+        username: creator?.username || '',
+        instagram_link: creator?.instagram_link || '',
+        followers_tier: creator?.followers_tier || '',
+        state: creator?.state || '',
+        city: creator?.city || '',
+        whatsapp: creator?.whatsapp || '',
+        email: creator?.email || '',
+        gender: creator?.gender || '',
+        sheet_source: creator?.sheet_source || ''
+      });
+    }
+  }, [creator]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const validateEmail = (email) => {
+    if (!email) return true; // Email is optional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    if (!phone) return true; // Phone is optional
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
   };
 
   const handleSubmit = async (e) => {
@@ -32,39 +66,39 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
       setError(null);
 
       // Validate required fields
-      if (!formData?.name || !formData?.username || !formData?.email) {
-        throw new Error('Name, username and email are required');
+      if (!formData?.name?.trim()) {
+        throw new Error('Name is required');
+      }
+      if (!formData?.username?.trim()) {
+        throw new Error('Username is required');
       }
 
-      // Create creator
-      const newCreator = await creatorService?.create(formData);
+      // Validate email format if provided
+      if (formData?.email && !validateEmail(formData?.email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate phone format if provided
+      if (formData?.whatsapp && !validatePhone(formData?.whatsapp)) {
+        throw new Error('Please enter a valid phone number (minimum 10 digits)');
+      }
+
+      // Update creator
+      const updatedCreator = await creatorService?.update(creator?.id, formData);
       
       // Notify parent component
-      onCreatorAdded?.(newCreator);
+      onCreatorUpdated?.(updatedCreator);
       
-      // Reset form and close
-      setFormData({
-        name: '',
-        username: '',
-        instagram_link: '',
-        followers_tier: '',
-        state: '',
-        city: '',
-        whatsapp: '',
-        email: '',
-        gender: '',
-        sheet_source: ''
-      });
       onClose();
     } catch (err) {
-      console.error('Error adding creator:', err);
-      setError(err?.message || 'Failed to add creator');
+      console.error('Error updating creator:', err);
+      setError(err?.message || 'Failed to update creator');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !creator) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[400] p-4">
@@ -72,11 +106,11 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Icon name="UserPlus" size={20} color="var(--color-primary)" />
+              <Icon name="Edit" size={20} color="var(--color-primary)" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Add New Creator</h2>
-              <p className="text-xs text-muted-foreground">Fill in the creator details</p>
+              <h2 className="text-lg font-semibold text-foreground">Edit Creator</h2>
+              <p className="text-xs text-muted-foreground">Update creator information</p>
             </div>
           </div>
           <button
@@ -106,6 +140,7 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               onChange={(e) => handleChange('name', e?.target?.value)}
               placeholder="Creator full name"
               required
+              disabled={loading}
             />
             <Input
               label="Username *"
@@ -113,6 +148,7 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               onChange={(e) => handleChange('username', e?.target?.value)}
               placeholder="Instagram username"
               required
+              disabled={loading}
             />
           </div>
 
@@ -121,6 +157,7 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
             value={formData?.instagram_link}
             onChange={(e) => handleChange('instagram_link', e?.target?.value)}
             placeholder="https://instagram.com/username"
+            disabled={loading}
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -129,12 +166,14 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               value={formData?.followers_tier}
               onChange={(e) => handleChange('followers_tier', e?.target?.value)}
               placeholder="e.g., 10K, 50K, 100K+"
+              disabled={loading}
             />
             <Input
               label="Gender"
               value={formData?.gender}
               onChange={(e) => handleChange('gender', e?.target?.value)}
               placeholder="Male/Female/Other"
+              disabled={loading}
             />
           </div>
 
@@ -144,12 +183,14 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               value={formData?.state}
               onChange={(e) => handleChange('state', e?.target?.value)}
               placeholder="State name"
+              disabled={loading}
             />
             <Input
               label="City"
               value={formData?.city}
               onChange={(e) => handleChange('city', e?.target?.value)}
               placeholder="City name"
+              disabled={loading}
             />
           </div>
 
@@ -159,6 +200,8 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               value={formData?.whatsapp}
               onChange={(e) => handleChange('whatsapp', e?.target?.value)}
               placeholder="WhatsApp number"
+              disabled={loading}
+              error={formData?.whatsapp && !validatePhone(formData?.whatsapp) ? 'Invalid phone number' : ''}
             />
             <Input
               label="Email"
@@ -166,6 +209,8 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               value={formData?.email}
               onChange={(e) => handleChange('email', e?.target?.value)}
               placeholder="email@example.com"
+              disabled={loading}
+              error={formData?.email && !validateEmail(formData?.email) ? 'Invalid email address' : ''}
             />
           </div>
 
@@ -174,6 +219,7 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
             value={formData?.sheet_source}
             onChange={(e) => handleChange('sheet_source', e?.target?.value)}
             placeholder="Source spreadsheet name"
+            disabled={loading}
           />
 
           <div className="flex items-center justify-end gap-3 pt-4">
@@ -188,11 +234,18 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
             <Button
               type="submit"
               variant="default"
-              iconName="UserPlus"
+              iconName="Save"
               iconPosition="left"
               disabled={loading}
             >
-              {loading ? 'Adding...' : 'Add Creator'}
+              {loading ? (
+                <>
+                  <Icon name="Loader2" size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
           </div>
         </form>
@@ -201,4 +254,4 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
   );
 };
 
-export default AddCreatorModal;
+export default EditCreatorModal;
