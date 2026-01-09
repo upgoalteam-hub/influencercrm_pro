@@ -27,6 +27,25 @@ const UserManagementPanel = () => {
       ]);
 
       if (usersResult?.error) {
+        console.error('Error fetching users:', usersResult.error);
+        toast?.error('Failed to load users: ' + (usersResult.error?.message || 'Unknown error'));
+      } else {
+        setUsers(usersResult?.data || []);
+      }
+
+      if (rolesResult?.error) {
+        console.error('Error fetching roles:', rolesResult.error);
+        toast?.error('Failed to load roles: ' + (rolesResult.error?.message || 'Unknown error'));
+        setRoles([]);
+      } else {
+        console.log('Roles loaded successfully:', rolesResult?.data);
+        setRoles(rolesResult?.data || []);
+        if (!rolesResult?.data || rolesResult?.data?.length === 0) {
+          console.warn('No roles found in database. Please check if user_roles table has data.');
+          toast?.error('No roles available. Please ensure roles are seeded in the database.');
+        }
+      }
+      if (usersResult?.error) {
         // Fallback mock data if fetch fails
         setUsers([
           { id: '1', fullName: 'John Admin', email: 'admin@example.com', isActive: true, userRoles: { roleName: 'super_admin' }, createdAt: new Date().toISOString() },
@@ -48,6 +67,7 @@ const UserManagementPanel = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast?.error('Failed to load data: ' + (error?.message || 'Unknown error'));
       toast?.error('Failed to load users - using sample data');
       // Provide fallback data
       setUsers([

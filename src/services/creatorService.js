@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { calculateCreatorsPerformance, getTopPerformers } from '../utils/performanceUtils';
 
 export const creatorService = {
   async getCount() {
@@ -293,6 +294,74 @@ export const creatorService = {
       };
     } catch (error) {
       console.error('Error fetching paginated creators:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get top performing creators based on performance score
+   * @param {number} limit - Number of top performers to return (default: 6)
+   * @returns {Promise<Array>} Top performing creators with performance scores
+   */
+  async getTopPerformers(limit = 6) {
+    try {
+      // Fetch all creators and campaigns
+      const [allCreators, campaignsResult] = await Promise.all([
+        this.getAll({ limit: 1000 }), // Get all creators
+        supabase?.from('campaigns')?.select(`
+          *,
+          creators (
+            id,
+            name,
+            username,
+            instagram_link
+          )
+        `)?.order('created_at', { ascending: false })
+      ]);
+
+      const allCampaigns = campaignsResult?.data || [];
+
+      // Calculate performance for all creators
+      const creatorsWithPerformance = calculateCreatorsPerformance(allCreators, allCampaigns);
+
+      // Get top performers
+      const topPerformers = getTopPerformers(creatorsWithPerformance, limit);
+
+      return topPerformers;
+    } catch (error) {
+      console.error('Error fetching top performers:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update manual performance score for a creator
+   * @param {string} id - Creator ID
+   * @param {number} score - Performance score (0-10). Pass null to remove manual score and use calculated score.
+   * @returns {Promise<Object>} Updated creator object
+   */
+  async updatePerformanceScore(id, score) {
+    try {
+      // Validate score
+      if (score !== null && (isNaN(score) || score < 0 || score > 10)) {
+        throw new Error('Performance score must be between 0 and 10');
+      }
+
+      const { data, error } = await supabase
+        ?.from('creators')
+        ?.update({ 
+          manual_performance_score: score === null ? null : Math.round(score * 10) / 10,
+          updated_at: new Date().toISOString()
+        })
+        ?.eq('id', id)
+        ?.select()
+        ?.single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error updating performance score:', error);
       throw error;
     }
   }

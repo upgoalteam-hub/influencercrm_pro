@@ -77,26 +77,104 @@ export const getUserById = async (id) => {
 
 /**
  * Create a new user
+ * This function creates a user in Supabase Auth and then updates the users table
  */
 export const createUser = async (userData) => {
   try {
-    const snakeCaseData = toSnakeCase(userData);
-    
-    const { data, error } = await supabase?.from('users')?.insert([snakeCaseData])?.select(`
-        *,
-        user_roles (
-          id,
-          role_name,
-          display_name,
-          permissions
-        )
-      `)?.single();
+    // Validate required fields
+    if (!userData?.email || !userData?.password || !userData?.fullName || !userData?.roleId) {
+      return { 
+        data: null, 
+        error: { message: 'Missing required fields: email, password, fullName, roleId' } 
+      };
+    }
 
-    if (error) throw error;
-    return { data: toCamelCase(data), error: null };
+    // Call the edge function to create the user
+    const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return {
+        data: null,
+        error: { message: 'Supabase configuration missing' }
+      };
+    }
+
+    // Get the current session token for authorization
+    const { data: { session } } = await supabase?.auth?.getSession();
+    if (!session) {
+      return {
+        data: null,
+        error: { message: 'You must be logged in to create users' }
+      };
+    }
+
+    // Call the edge function using supabase.functions.invoke if available, otherwise use fetch
+    let response;
+    let result;
+
+    // Try using supabase.functions.invoke first (preferred method)
+    if (supabase?.functions?.invoke) {
+      const { data: invokeData, error: invokeError } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: userData.email,
+          password: userData.password,
+          fullName: userData.fullName,
+          roleId: userData.roleId,
+          isActive: userData.isActive !== undefined ? userData.isActive : true
+        }
+      });
+
+      if (invokeError) {
+        return {
+          data: null,
+          error: { message: invokeError.message || 'Failed to create user' }
+        };
+      }
+
+      if (invokeData?.error) {
+        return {
+          data: null,
+          error: { message: invokeData.error || 'Failed to create user' }
+        };
+      }
+
+      return { data: toCamelCase(invokeData?.data), error: null };
+    }
+
+    // Fallback to fetch if invoke is not available
+    response = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabaseAnonKey
+      },
+      body: JSON.stringify({
+        email: userData.email,
+        password: userData.password,
+        fullName: userData.fullName,
+        roleId: userData.roleId,
+        isActive: userData.isActive !== undefined ? userData.isActive : true
+      })
+    });
+
+    result = await response.json();
+
+    if (!response.ok) {
+      return {
+        data: null,
+        error: { message: result?.error || result?.message || 'Failed to create user' }
+      };
+    }
+
+    return { data: toCamelCase(result?.data), error: null };
   } catch (error) {
     console.error('Error creating user:', error);
-    return { data: null, error };
+    return { 
+      data: null, 
+      error: { message: error?.message || 'Failed to create user. Please ensure the edge function is deployed.' } 
+    };
   }
 };
 
@@ -145,10 +223,19 @@ export const deleteUser = async (id) => {
  */
 export const getAllRoles = async () => {
   try {
+    console.log('Fetching roles from user_roles table...');
     const { data, error } = await supabase?.from('user_roles')?.select('*')?.order('role_name', { ascending: true });
 
-    if (error) throw error;
-    return { data: data?.map(toCamelCase) || [], error: null };
+    if (error) {
+      console.error('Supabase error fetching roles:', error);
+      throw error;
+    }
+
+    console.log('Raw roles data from Supabase:', data);
+    const camelCaseData = data?.map(toCamelCase) || [];
+    console.log('Roles after camelCase conversion:', camelCaseData);
+    
+    return { data: camelCaseData, error: null };
   } catch (error) {
     console.error('Error fetching roles:', error);
     return { data: null, error };
