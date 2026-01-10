@@ -20,8 +20,8 @@ const UserManagementPanel = () => {
   // Define sticky column configuration for consistency
   const STICKY_COLUMNS = {
     checkbox: { width: '48px', left: '0px' },
-    sr_no: { width: '80px', left: '48px' },
-    name: { width: '250px', left: '128px' },
+    sr_no: { width: '60px', left: '0px' },
+    name: { width: '200px', left: '60px' },
     actions: { width: '120px', right: '0px' }
   };
 
@@ -214,9 +214,9 @@ const UserManagementPanel = () => {
       </div>
       {/* Users Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-        <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
+        <table className="w-full" style={{ tableLayout: 'auto', minWidth: '1200px' }}>
           <colgroup>
-            <col style={{ width: STICKY_COLUMNS.checkbox.width, minWidth: STICKY_COLUMNS.checkbox.width, position: 'sticky', left: STICKY_COLUMNS.checkbox.left, zIndex: 20 }} /> {/* Checkbox */}
+            <col style={{ width: STICKY_COLUMNS.checkbox.width, minWidth: STICKY_COLUMNS.checkbox.width }} /> {/* Checkbox */}
             <col style={{ width: STICKY_COLUMNS.sr_no.width, minWidth: STICKY_COLUMNS.sr_no.width, position: 'sticky', left: STICKY_COLUMNS.sr_no.left, zIndex: 20 }} /> {/* Sr. No */}
             <col style={{ width: STICKY_COLUMNS.name.width, minWidth: STICKY_COLUMNS.name.width, position: 'sticky', left: STICKY_COLUMNS.name.left, zIndex: 20 }} /> {/* Name */}
             <col style={{ width: '150px', minWidth: '120px' }} /> {/* Role */}
@@ -226,7 +226,7 @@ const UserManagementPanel = () => {
           </colgroup>
           <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-20">
             <tr>
-              <th className="w-[48px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 z-[20] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+              <th className="w-[48px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <input
                   type="checkbox"
                   checked={filteredUsers?.length > 0 && selectedUsers?.length === filteredUsers?.length}
@@ -240,10 +240,10 @@ const UserManagementPanel = () => {
                   className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
               </th>
-              <th className="w-[60px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-[48px] z-[20] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
+              <th className="w-[60px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 z-[20] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
                 Sr. No
               </th>
-              <th className="w-[250px] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-[128px] z-[20] !bg-white border-r-2 border-gray-200 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+              <th className="w-[200px] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-[60px] z-[20] !bg-white border-r-2 border-gray-200 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -270,7 +270,7 @@ const UserManagementPanel = () => {
             ) : (
               filteredUsers?.map((user, index) => (
                 <tr key={user?.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="w-[48px] px-3 py-4 sticky left-0 z-[10] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                  <td className="w-[48px] px-3 py-4">
                     <input
                       type="checkbox"
                       checked={selectedUsers?.includes(user?.id)}
@@ -284,10 +284,10 @@ const UserManagementPanel = () => {
                       className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                     />
                   </td>
-                  <td className="w-[60px] px-3 py-4 sticky left-[48px] z-[10] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                  <td className="w-[60px] px-3 py-4 sticky left-0 z-[10] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
                     <div className="text-sm font-medium text-gray-900 text-center">{index + 1}</div>
                   </td>
-                  <td className="w-[250px] px-4 py-4 sticky left-[128px] z-[10] !bg-white border-r-2 border-gray-200 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                  <td className="w-[200px] px-4 py-4 sticky left-[60px] z-[10] !bg-white border-r-2 border-gray-200 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-purple-600 font-semibold">

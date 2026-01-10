@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import EditCreatorModal from './EditCreatorModal';
+import EditableCell from './EditableCell';
 
 const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, sortConfig, userRole, onCreatorUpdated }) => {
   const navigate = useNavigate();
@@ -257,51 +258,99 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                   <div className="text-sm text-foreground truncate">{creator?.sr_no || 'N/A'}</div>
                 </td>
                 <td className="px-4 py-3 sticky left-20 z-30 bg-card border-r border-border/50 shadow-sm">
-                  <div className="text-sm font-medium text-foreground truncate" title={creator?.name}>
-                    {creator?.name || 'N/A'}
-                  </div>
+                  <EditableCell
+                    value={creator?.name}
+                    creatorId={creator?.id}
+                    field="name"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm font-medium text-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  {creator?.instagram_link && creator?.instagram_link !== 'N/A' ? (
-                    <a
-                      href={creator?.instagram_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline flex items-center gap-1 truncate"
-                      title={creator?.instagram_link}
-                    >
-                      <span className="truncate">{creator?.instagram_link}</span>
-                      <Icon name="ExternalLink" size={12} className="flex-shrink-0" />
-                    </a>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">N/A</span>
-                  )}
+                  <EditableCell
+                    value={creator?.instagram_link}
+                    creatorId={creator?.id}
+                    field="instagram_link"
+                    type="url"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-primary hover:underline flex items-center gap-1 truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-foreground truncate">{creator?.followers_tier || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.followers_tier}
+                    creatorId={creator?.id}
+                    field="followers_tier"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-foreground truncate">{creator?.state || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.state}
+                    creatorId={creator?.id}
+                    field="state"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-foreground truncate">{creator?.city || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.city}
+                    creatorId={creator?.id}
+                    field="city"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-foreground truncate">{creator?.whatsapp || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.whatsapp}
+                    creatorId={creator?.id}
+                    field="whatsapp"
+                    type="whatsapp"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-muted-foreground truncate" title={creator?.email}>
-                    {creator?.email || 'N/A'}
-                  </div>
+                  <EditableCell
+                    value={creator?.email}
+                    creatorId={creator?.id}
+                    field="email"
+                    type="email"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-muted-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-foreground capitalize truncate">{creator?.gender || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.gender}
+                    creatorId={creator?.id}
+                    field="gender"
+                    type="select"
+                    options={['Male', 'Female', 'Other']}
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-foreground capitalize truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-foreground truncate">@{creator?.username || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.username}
+                    creatorId={creator?.id}
+                    field="username"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-muted-foreground truncate">{creator?.sheet_source || 'N/A'}</div>
+                  <EditableCell
+                    value={creator?.sheet_source}
+                    creatorId={creator?.id}
+                    field="sheet_source"
+                    onUpdate={handleCreatorUpdated}
+                    className="text-sm text-muted-foreground truncate"
+                  />
                 </td>
                 <td className="px-4 py-3 sticky right-0 z-30 bg-card border-l border-border/50 shadow-sm">
                   <div className="flex items-center gap-2">
