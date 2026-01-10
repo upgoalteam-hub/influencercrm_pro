@@ -1,3 +1,5 @@
+// src/pages/system-settings-user-management/components/UserManagementPanel.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, Edit2, Trash2, CheckCircle, XCircle, RefreshCw, Search } from 'lucide-react';
 import { getAllUsers, deleteUser, toggleUserStatus, getAllRoles } from '../../../services/userManagementService';
@@ -13,6 +15,15 @@ const UserManagementPanel = () => {
   const [selectedRole, setSelectedRole] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+
+  // Define sticky column configuration for consistency
+  const STICKY_COLUMNS = {
+    checkbox: { width: '48px', left: '0px' },
+    sr_no: { width: '80px', left: '48px' },
+    name: { width: '250px', left: '128px' },
+    actions: { width: '120px', right: '0px' }
+  };
 
   useEffect(() => {
     fetchData();
@@ -29,6 +40,14 @@ const UserManagementPanel = () => {
       if (usersResult?.error) {
         console.error('Error fetching users:', usersResult.error);
         toast?.error('Failed to load users: ' + (usersResult.error?.message || 'Unknown error'));
+        if (usersResult.error?.message?.includes('network') || usersResult.error?.message?.includes('connection')) {
+          setUsers([
+            { id: '1', fullName: 'John Admin', email: 'admin@example.com', isActive: true, userRoles: { roleName: 'super_admin', displayName: 'Super Admin' }, createdAt: new Date().toISOString() },
+            { id: '2', fullName: 'Jane Manager', email: 'manager@example.com', isActive: true, userRoles: { roleName: 'manager', displayName: 'Manager' }, createdAt: new Date().toISOString() }
+          ]);
+        } else {
+          setUsers([]);
+        }
       } else {
         setUsers(usersResult?.data || []);
       }
@@ -36,46 +55,38 @@ const UserManagementPanel = () => {
       if (rolesResult?.error) {
         console.error('Error fetching roles:', rolesResult.error);
         toast?.error('Failed to load roles: ' + (rolesResult.error?.message || 'Unknown error'));
-        setRoles([]);
+        if (rolesResult.error?.message?.includes('network') || rolesResult.error?.message?.includes('connection')) {
+          setRoles([
+            { id: '1', roleName: 'super_admin', displayName: 'Super Admin' },
+            { id: '2', roleName: 'admin', displayName: 'Admin' },
+            { id: '3', roleName: 'manager', displayName: 'Manager' }
+          ]);
+        } else {
+          setRoles([]);
+          if (!rolesResult?.data || rolesResult?.data?.length === 0) {
+            console.warn('No roles found in database. Please check if user_roles table has data.');
+            toast?.error('No roles available. Please ensure roles are seeded in the database.');
+          }
+        }
       } else {
         console.log('Roles loaded successfully:', rolesResult?.data);
-        setRoles(rolesResult?.data || []);
-        if (!rolesResult?.data || rolesResult?.data?.length === 0) {
-          console.warn('No roles found in database. Please check if user_roles table has data.');
-          toast?.error('No roles available. Please ensure roles are seeded in the database.');
-        }
-      }
-      if (usersResult?.error) {
-        // Fallback mock data if fetch fails
-        setUsers([
-          { id: '1', fullName: 'John Admin', email: 'admin@example.com', isActive: true, userRoles: { roleName: 'super_admin' }, createdAt: new Date().toISOString() },
-          { id: '2', fullName: 'Jane Manager', email: 'manager@example.com', isActive: true, userRoles: { roleName: 'manager' }, createdAt: new Date().toISOString() }
-        ]);
-      } else {
-        setUsers(usersResult?.data || []);
-      }
-
-      if (rolesResult?.error) {
-        // Fallback mock roles
-        setRoles([
-          { id: '1', roleName: 'super_admin', displayName: 'Super Admin' },
-          { id: '2', roleName: 'admin', displayName: 'Admin' },
-          { id: '3', roleName: 'manager', displayName: 'Manager' }
-        ]);
-      } else {
         setRoles(rolesResult?.data || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast?.error('Failed to load data: ' + (error?.message || 'Unknown error'));
-      toast?.error('Failed to load users - using sample data');
-      // Provide fallback data
-      setUsers([
-        { id: '1', fullName: 'John Admin', email: 'admin@example.com', isActive: true, userRoles: { roleName: 'super_admin' }, createdAt: new Date().toISOString() }
-      ]);
-      setRoles([
-        { id: '1', roleName: 'super_admin', displayName: 'Super Admin' }
-      ]);
+      if (error?.message?.includes('network') || error?.message?.includes('connection')) {
+        toast?.error('Using sample data due to connection issues');
+        setUsers([
+          { id: '1', fullName: 'John Admin', email: 'admin@example.com', isActive: true, userRoles: { roleName: 'super_admin', displayName: 'Super Admin' }, createdAt: new Date().toISOString() }
+        ]);
+        setRoles([
+          { id: '1', roleName: 'super_admin', displayName: 'Super Admin' }
+        ]);
+      } else {
+        setUsers([]);
+        setRoles([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -139,6 +150,10 @@ const UserManagementPanel = () => {
     return colors?.[roleName] || 'bg-gray-100 text-gray-700';
   };
 
+  const handleSelectionChange = (selectedUserIds) => {
+    setSelectedUsers(selectedUserIds);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -186,14 +201,50 @@ const UserManagementPanel = () => {
           <UserPlus className="w-4 h-4" />
           Add User
         </button>
+        
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          title="Refresh data"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
       {/* Users Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+        <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
+          <colgroup>
+            <col style={{ width: STICKY_COLUMNS.checkbox.width, minWidth: STICKY_COLUMNS.checkbox.width, position: 'sticky', left: STICKY_COLUMNS.checkbox.left, zIndex: 20 }} /> {/* Checkbox */}
+            <col style={{ width: STICKY_COLUMNS.sr_no.width, minWidth: STICKY_COLUMNS.sr_no.width, position: 'sticky', left: STICKY_COLUMNS.sr_no.left, zIndex: 20 }} /> {/* Sr. No */}
+            <col style={{ width: STICKY_COLUMNS.name.width, minWidth: STICKY_COLUMNS.name.width, position: 'sticky', left: STICKY_COLUMNS.name.left, zIndex: 20 }} /> {/* Name */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* Role */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* Status */}
+            <col style={{ width: '150px', minWidth: '120px' }} /> {/* Last Login */}
+            <col style={{ width: STICKY_COLUMNS.actions.width, minWidth: STICKY_COLUMNS.actions.width, position: 'sticky', right: STICKY_COLUMNS.actions.right, zIndex: 20 }} /> {/* Actions */}
+          </colgroup>
+          <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-20">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                User
+              <th className="w-[48px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 z-[20] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                <input
+                  type="checkbox"
+                  checked={filteredUsers?.length > 0 && selectedUsers?.length === filteredUsers?.length}
+                  onChange={(e) => {
+                    if (e?.target?.checked) {
+                      handleSelectionChange?.(filteredUsers?.map(u => u?.id));
+                    } else {
+                      handleSelectionChange?.([]);
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+              </th>
+              <th className="w-[60px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-[48px] z-[20] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
+                Sr. No
+              </th>
+              <th className="w-[250px] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-[128px] z-[20] !bg-white border-r-2 border-gray-200 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Role
@@ -204,7 +255,7 @@ const UserManagementPanel = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Last Login
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 z-[20] !bg-white border-l border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
                 Actions
               </th>
             </tr>
@@ -212,23 +263,40 @@ const UserManagementPanel = () => {
           <tbody className="divide-y divide-gray-200">
             {filteredUsers?.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                   No users found
                 </td>
               </tr>
             ) : (
-              filteredUsers?.map((user) => (
+              filteredUsers?.map((user, index) => (
                 <tr key={user?.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
+                  <td className="w-[48px] px-3 py-4 sticky left-0 z-[10] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers?.includes(user?.id)}
+                      onChange={() => {
+                        if (selectedUsers?.includes(user?.id)) {
+                          handleSelectionChange?.(selectedUsers?.filter(id => id !== user?.id));
+                        } else {
+                          handleSelectionChange?.([...selectedUsers, user?.id]);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                  </td>
+                  <td className="w-[60px] px-3 py-4 sticky left-[48px] z-[10] !bg-white border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                    <div className="text-sm font-medium text-gray-900 text-center">{index + 1}</div>
+                  </td>
+                  <td className="w-[250px] px-4 py-4 sticky left-[128px] z-[10] !bg-white border-r-2 border-gray-200 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-purple-600 font-semibold">
                           {user?.fullName?.charAt(0) || 'U'}
                         </span>
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{user?.fullName}</div>
-                        <div className="text-sm text-gray-500">{user?.email}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 truncate">{user?.fullName}</div>
+                        <div className="text-sm text-gray-500 truncate">{user?.email}</div>
                       </div>
                     </div>
                   </td>
@@ -263,7 +331,7 @@ const UserManagementPanel = () => {
                       ? new Date(user.lastLogin)?.toLocaleDateString()
                       : 'Never'}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 sticky right-0 z-[10] !bg-white border-l-2 border-gray-200 shadow-md">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setEditingUser(user)}

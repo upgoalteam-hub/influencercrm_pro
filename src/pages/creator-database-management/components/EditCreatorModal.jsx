@@ -47,15 +47,22 @@ const EditCreatorModal = ({ isOpen, onClose, creator, onCreatorUpdated }) => {
   };
 
   const validateEmail = (email) => {
-    if (!email) return true; // Email is optional
+    if (!email || email.toLowerCase() === 'n/a') return true; // Email is optional or N/A
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
   const validatePhone = (phone) => {
     if (!phone) return true; // Phone is optional
+    // Allow multiple numbers separated by slash or comma
+    const phoneNumbers = phone.split(/[/,]/).map(p => p.trim());
     const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+    
+    // Check each phone number
+    return phoneNumbers.every(p => {
+      if (!p) return true; // Allow empty segments
+      return phoneRegex.test(p) && p.replace(/\D/g, '').length >= 10;
+    });
   };
 
   const handleSubmit = async (e) => {

@@ -34,9 +34,6 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
         case 'csv':
           exportUtils?.exportToCSV(formattedData, filename);
           break;
-        case 'pdf':
-          exportUtils?.exportToPDF(formattedData, filename);
-          break;
         default:
           exportUtils?.exportToExcel(formattedData, filename);
       }

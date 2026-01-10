@@ -10,6 +10,14 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   const [editingCreator, setEditingCreator] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Define sticky column configuration for consistency
+  const STICKY_COLUMNS = {
+    checkbox: { width: '48px', left: '0px' },
+    sr_no: { width: '80px', left: '48px' },
+    name: { width: '200px', left: '128px' },
+    actions: { width: '120px', right: '0px' }
+  };
+
   // Memoize creators to prevent unnecessary re-renders
   const stableCreators = useMemo(() => {
     if (!creators || !Array.isArray(creators)) return [];
@@ -115,12 +123,12 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   // Empty state
   if (!stableCreators || stableCreators.length === 0) {
     return (
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
+      <div className="overflow-x-auto table-container">
+        <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1400px' }}>
           <colgroup>
-            <col style={{ width: '48px', minWidth: '48px' }} /> {/* Checkbox */}
-            <col style={{ width: '80px', minWidth: '80px' }} /> {/* sr_no */}
-            <col style={{ width: '200px', minWidth: '150px' }} /> {/* name */}
+            <col style={{ width: STICKY_COLUMNS.checkbox.width, minWidth: STICKY_COLUMNS.checkbox.width, position: 'sticky', left: STICKY_COLUMNS.checkbox.left, zIndex: 25 }} /> {/* Checkbox */}
+            <col style={{ width: STICKY_COLUMNS.sr_no.width, minWidth: STICKY_COLUMNS.sr_no.width, position: 'sticky', left: STICKY_COLUMNS.sr_no.left, zIndex: 25 }} /> {/* sr_no */}
+            <col style={{ width: STICKY_COLUMNS.name.width, minWidth: '150px', position: 'sticky', left: STICKY_COLUMNS.name.left, zIndex: 25 }} /> {/* name */}
             <col style={{ width: '250px', minWidth: '200px' }} /> {/* instagram_link */}
             <col style={{ width: '120px', minWidth: '100px' }} /> {/* followers_tier */}
             <col style={{ width: '150px', minWidth: '120px' }} /> {/* state */}
@@ -130,11 +138,11 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
             <col style={{ width: '100px', minWidth: '80px' }} /> {/* gender */}
             <col style={{ width: '150px', minWidth: '120px' }} /> {/* username */}
             <col style={{ width: '150px', minWidth: '120px' }} /> {/* sheet_source */}
-            <col style={{ width: '120px', minWidth: '100px' }} /> {/* Actions */}
+            <col style={{ width: STICKY_COLUMNS.actions.width, minWidth: STICKY_COLUMNS.actions.width, position: 'sticky', right: STICKY_COLUMNS.actions.right, zIndex: 25 }} /> {/* Actions */}
           </colgroup>
           <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3 w-12">
+              <th className="px-4 py-3 w-12 sticky left-0 z-30 bg-card border-r border-border/50 shadow-sm">
                 <input
                   type="checkbox"
                   disabled
@@ -142,8 +150,12 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                   aria-label="Select all creators"
                 />
               </th>
-              <SortableHeader column="sr_no" label="sr_no" />
-              <SortableHeader column="name" label="name" />
+              <th className="px-4 py-3 sticky left-12 z-30 bg-card border-r border-border/50 shadow-sm">
+                <SortableHeader column="sr_no" label="sr_no" />
+              </th>
+              <th className="px-4 py-3 sticky left-20 z-30 bg-card border-r border-border/50 shadow-sm">
+                <SortableHeader column="name" label="name" />
+              </th>
               <SortableHeader column="instagram_link" label="instagram_link" />
               <SortableHeader column="followers_tier" label="followers_tier" />
               <SortableHeader column="state" label="state" />
@@ -153,7 +165,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
               <SortableHeader column="gender" label="gender" />
               <SortableHeader column="username" label="username" />
               <SortableHeader column="sheet_source" label="sheet_source" />
-              <th className="px-4 py-3 text-left">
+              <th className="px-4 py-3 sticky right-0 z-30 bg-card border-l border-border/50 shadow-sm">
                 <span className="text-xs font-medium text-muted-foreground">Actions</span>
               </th>
             </tr>
@@ -174,12 +186,12 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   }
 
   return (
-    <div className="overflow-x-auto custom-scrollbar">
-      <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
+    <div className="overflow-x-auto table-container">
+      <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1400px' }}>
         <colgroup>
-          <col style={{ width: '48px', minWidth: '48px' }} /> {/* Checkbox */}
-          <col style={{ width: '80px', minWidth: '80px' }} /> {/* sr_no */}
-          <col style={{ width: '200px', minWidth: '150px' }} /> {/* name */}
+          <col style={{ width: STICKY_COLUMNS.checkbox.width, minWidth: STICKY_COLUMNS.checkbox.width, position: 'sticky', left: STICKY_COLUMNS.checkbox.left, zIndex: 25 }} /> {/* Checkbox */}
+          <col style={{ width: STICKY_COLUMNS.sr_no.width, minWidth: STICKY_COLUMNS.sr_no.width, position: 'sticky', left: STICKY_COLUMNS.sr_no.left, zIndex: 25 }} /> {/* sr_no */}
+          <col style={{ width: STICKY_COLUMNS.name.width, minWidth: '150px', position: 'sticky', left: STICKY_COLUMNS.name.left, zIndex: 25 }} /> {/* name */}
           <col style={{ width: '250px', minWidth: '200px' }} /> {/* instagram_link */}
           <col style={{ width: '120px', minWidth: '100px' }} /> {/* followers_tier */}
           <col style={{ width: '150px', minWidth: '120px' }} /> {/* state */}
@@ -189,11 +201,11 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
           <col style={{ width: '100px', minWidth: '80px' }} /> {/* gender */}
           <col style={{ width: '150px', minWidth: '120px' }} /> {/* username */}
           <col style={{ width: '150px', minWidth: '120px' }} /> {/* sheet_source */}
-          <col style={{ width: '120px', minWidth: '100px' }} /> {/* Actions */}
+          <col style={{ width: STICKY_COLUMNS.actions.width, minWidth: STICKY_COLUMNS.actions.width, position: 'sticky', right: STICKY_COLUMNS.actions.right, zIndex: 25 }} /> {/* Actions */}
         </colgroup>
         <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 w-12">
+            <th className="px-4 py-3 w-12 sticky left-0 z-30 bg-card border-r border-border/50 shadow-sm">
               <input
                 type="checkbox"
                 checked={selectedCreators?.length === stableCreators?.length && stableCreators?.length > 0}
@@ -202,8 +214,12 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 aria-label="Select all creators"
               />
             </th>
-            <SortableHeader column="sr_no" label="sr_no" />
-            <SortableHeader column="name" label="name" />
+            <th className="px-4 py-3 sticky left-12 z-30 bg-card border-r border-border/50 shadow-sm">
+              <SortableHeader column="sr_no" label="sr_no" />
+            </th>
+            <th className="px-4 py-3 sticky left-20 z-30 bg-card border-r border-border/50 shadow-sm">
+              <SortableHeader column="name" label="name" />
+            </th>
             <SortableHeader column="instagram_link" label="instagram_link" />
             <SortableHeader column="followers_tier" label="followers_tier" />
             <SortableHeader column="state" label="state" />
@@ -213,7 +229,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
             <SortableHeader column="gender" label="gender" />
             <SortableHeader column="username" label="username" />
             <SortableHeader column="sheet_source" label="sheet_source" />
-            <th className="px-4 py-3 text-left">
+            <th className="px-4 py-3 sticky right-0 z-30 bg-card border-l border-border/50 shadow-sm">
               <span className="text-xs font-medium text-muted-foreground">Actions</span>
             </th>
           </tr>
@@ -228,7 +244,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 key={rowKey}
                 className="hover:bg-muted/30 transition-colors duration-200"
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 sticky left-0 z-30 bg-card border-r border-border/50 shadow-sm">
                   <input
                     type="checkbox"
                     checked={selectedCreators?.includes(creator?.id)}
@@ -237,10 +253,10 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     aria-label={`Select ${creator?.name}`}
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 sticky left-12 z-30 bg-card border-r border-border/50 shadow-sm">
                   <div className="text-sm text-foreground truncate">{creator?.sr_no || 'N/A'}</div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 sticky left-20 z-30 bg-card border-r border-border/50 shadow-sm">
                   <div className="text-sm font-medium text-foreground truncate" title={creator?.name}>
                     {creator?.name || 'N/A'}
                   </div>
@@ -287,7 +303,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 <td className="px-4 py-3">
                   <div className="text-sm text-muted-foreground truncate">{creator?.sheet_source || 'N/A'}</div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 sticky right-0 z-30 bg-card border-l border-border/50 shadow-sm">
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"

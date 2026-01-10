@@ -1,6 +1,8 @@
+// src/pages/system-settings-user-management/components/AddUserModal.jsx
+
 import React, { useState, useEffect } from 'react';
-import { X, UserPlus, Eye, EyeOff } from 'lucide-react';
-import { createUser } from '../../../services/userManagementService';
+import { X, UserPlus, Eye, EyeOff, AlertCircle, Check } from 'lucide-react';
+import { createUser, checkUserExists } from '../../../services/userManagementService';
 
 const AddUserModal = ({ roles, onClose, onUserAdded }) => {
   const [formData, setFormData] = useState({
@@ -13,20 +15,71 @@ const AddUserModal = ({ roles, onClose, onUserAdded }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailValidation, setEmailValidation] = useState({
+    checking: false,
+    exists: false,
+    message: ''
+  });
+  const [emailCheckTimeout, setEmailCheckTimeout] = useState(null);
 
   // Debug: Log roles when component mounts or roles change
   useEffect(() => {
-    console.log('AddUserModal - Roles received:', roles);
-    console.log('AddUserModal - Roles type:', typeof roles);
-    console.log('AddUserModal - Is array:', Array.isArray(roles));
-    console.log('AddUserModal - Roles length:', roles?.length);
-    if (roles && Array.isArray(roles) && roles.length > 0) {
-      console.log('AddUserModal - First role sample:', roles[0]);
-      console.log('AddUserModal - Role keys:', Object.keys(roles[0]));
-    } else if (roles && !Array.isArray(roles)) {
-      console.error('AddUserModal - Roles is not an array!', roles);
+    console.log('=== ADD USER MODAL DEBUG ===');
+    console.log('Roles received:', roles);
+    console.log('Roles type:', typeof roles);
+    console.log('Is array:', Array.isArray(roles));
+    console.log('Roles length:', roles?.length);
+    
+    // Check if roles is null, undefined, or empty
+    if (roles === null) {
+      console.error('ROLES IS NULL - This indicates an error in fetch!');
+    } else if (roles === undefined) {
+      console.error('ROLES IS UNDEFINED - Component not receiving props!');
+    } else if (!Array.isArray(roles)) {
+      console.error('ROLES IS NOT AN ARRAY:', roles);
+      console.error('Type:', typeof roles);
+    } else if (roles.length === 0) {
+      console.warn('ROLES ARRAY IS EMPTY - Database might be empty or RLS blocking access');
+    } else {
+      console.log('✅ ROLES LOADED SUCCESSFULLY');
+      console.log('First role:', roles[0]);
+      console.log('Role keys:', Object.keys(roles[0]));
+      
+      // Check if role has expected properties
+      const firstRole = roles[0];
+      console.log('Has id:', !!firstRole.id);
+      console.log('Has roleName:', !!firstRole.roleName);
+      console.log('Has displayName:', !!firstRole.displayName);
+      console.log('Has role_name:', !!firstRole.role_name);
+      console.log('Has display_name:', !!firstRole.display_name);
     }
+    console.log('=== END DEBUG ===');
   }, [roles]);
+
+  // Check if email exists (debounced)
+  const checkEmailExists = async (email) => {
+    if (!email || !email.includes('@')) {
+      setEmailValidation({ checking: false, exists: false, message: '' });
+      return;
+    }
+
+    setEmailValidation(prev => ({ ...prev, checking: true, message: '' }));
+    
+    try {
+      const { exists, source } = await checkUserExists(email);
+      if (exists) {
+        const message = source === 'auth' 
+          ? 'This email is already registered in the authentication system.'
+          : 'This email already exists in the database.';
+        setEmailValidation({ checking: false, exists: true, message });
+      } else {
+        setEmailValidation({ checking: false, exists: false, message: 'Email is available' });
+      }
+    } catch (error) {
+      console.error('Error checking email:', error);
+      setEmailValidation({ checking: false, exists: false, message: '' });
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e?.target;
@@ -34,6 +87,21 @@ const AddUserModal = ({ roles, onClose, onUserAdded }) => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    // Handle email validation with debounce
+    if (name === 'email') {
+      // Clear existing timeout
+      if (emailCheckTimeout) {
+        clearTimeout(emailCheckTimeout);
+      }
+      
+      // Set new timeout for debounced check
+      const timeout = setTimeout(() => {
+        checkEmailExists(value);
+      }, 800); // 800ms debounce
+      
+      setEmailCheckTimeout(timeout);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -50,15 +118,53 @@ const AddUserModal = ({ roles, onClose, onUserAdded }) => {
       return;
     }
 
+    // Check if email already exists
+    if (emailValidation.exists) {
+      setError('This email address is already registered. Please use a different email.');
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log('🔄 Attempting to create user...');
       const { data, error } = await createUser(formData);
-      if (error) throw error;
+      
+      if (error) {
+        console.error('❌ User creation failed:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        // Provide better error messages for common issues
+        if (error.message?.includes('Authentication failed') || error.message?.includes('No active session')) {
+          setError('Authentication required. Please log out and log back in with an admin account.');
+        } else if (error.message?.includes('permission') || error.message?.includes('403') || error.code === '42501') {
+          setError('Permission denied. You need admin privileges to create users.');
+        } else if (error.message?.includes('User already registered') || 
+                   error.message?.includes('A user with this email address has already been registered') ||
+                   error.code === 'duplicate_key' ||
+                   error.code === '23505') {
+          setError('A user with this email address already exists. Please use a different email or check if user is already in system.');
+        } else if (error.message?.includes('weak password')) {
+          setError('Password is too weak. Please choose a stronger password.');
+        } else if (error.message?.includes('Database error creating new user')) {
+          setError('Database error occurred. This might be due to a duplicate email or a database connection issue. Please try again.');
+        } else if (error.message?.includes('duplicate') || error.message?.includes('unique constraint')) {
+          setError('This email address is already registered in the system. Please use a different email.');
+        } else {
+          setError(error.message || 'Failed to create user. Please try again.');
+        }
+        return;
+      }
 
+      console.log('✅ User created successfully:', data);
       onUserAdded(data);
     } catch (err) {
-      console.error('Error creating user:', err);
-      setError(err?.message || 'Failed to create user');
+      console.error('❌ Unexpected error:', err);
+      setError(err?.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,15 +201,44 @@ const AddUserModal = ({ roles, onClose, onUserAdded }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email <span className="text-red-500">*</span>
             </label>
-            <input
-              type="email"
-              name="email"
-              value={formData?.email}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="user@example.com"
-              required
-            />
+            <div className="relative">
+              <input
+                type="email"
+                name="email"
+                value={formData?.email}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-10 ${
+                  emailValidation.exists 
+                    ? 'border-red-300 bg-red-50' 
+                    : emailValidation.message === 'Email is available'
+                    ? 'border-green-300 bg-green-50'
+                    : 'border-gray-300'
+                }`}
+                placeholder="user@example.com"
+                required
+              />
+              {emailValidation.checking && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                </div>
+              )}
+              {!emailValidation.checking && formData.email && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  {emailValidation.exists ? (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  ) : emailValidation.message === 'Email is available' ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : null}
+                </div>
+              )}
+            </div>
+            {emailValidation.message && (
+              <div className={`mt-1 text-xs ${
+                emailValidation.exists ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {emailValidation.message}
+              </div>
+            )}
           </div>
 
           <div>
@@ -170,7 +305,7 @@ const AddUserModal = ({ roles, onClose, onUserAdded }) => {
               {roles && Array.isArray(roles) && roles.length > 0 ? (
                 roles.map(role => {
                   const roleId = role?.id || role?.roleId;
-                  const displayName = role?.displayName || role?.display_name || role?.roleName || role?.role_name || 'Unknown Role';
+                  const displayName = role?.displayName || role?.display_name || role?.description || role?.roleName || role?.role_name || 'Unknown Role';
                   if (!roleId) {
                     console.warn('Role missing ID:', role);
                     return null;

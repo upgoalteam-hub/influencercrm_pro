@@ -361,20 +361,4 @@
   .text-fluid-2xl {
     font-size: clamp(1.5rem, 1.3rem + 0.6vw, 2.25rem);
   }
-
-  /* Custom Scrollbar */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-muted rounded-full;
-  }
-.custom-scrollbar::-webkit-scrollbar-thumb  {
-    @apply rounded-full;
-  }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover  {
-    
-  }
 }

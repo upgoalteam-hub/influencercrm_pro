@@ -24,6 +24,25 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const validateEmail = (email) => {
+    if (!email || email.toLowerCase() === 'n/a') return true; // Email is optional or N/A
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    if (!phone) return true; // Phone is optional
+    // Allow multiple numbers separated by slash or comma
+    const phoneNumbers = phone.split(/[/,]/).map(p => p.trim());
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    
+    // Check each phone number
+    return phoneNumbers.every(p => {
+      if (!p) return true; // Allow empty segments
+      return phoneRegex.test(p) && p.replace(/\D/g, '').length >= 10;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e?.preventDefault();
     
@@ -32,8 +51,18 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
       setError(null);
 
       // Validate required fields
-      if (!formData?.name || !formData?.username || !formData?.email) {
-        throw new Error('Name, username and email are required');
+      if (!formData?.name || !formData?.username) {
+        throw new Error('Name and username are required');
+      }
+
+      // Validate email format if provided
+      if (formData?.email && !validateEmail(formData?.email)) {
+        throw new Error('Please enter a valid email address or N/A');
+      }
+
+      // Validate phone format if provided
+      if (formData?.whatsapp && !validatePhone(formData?.whatsapp)) {
+        throw new Error('Please enter valid phone number(s) (minimum 10 digits each)');
       }
 
       // Create creator
@@ -159,6 +188,7 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               value={formData?.whatsapp}
               onChange={(e) => handleChange('whatsapp', e?.target?.value)}
               placeholder="WhatsApp number"
+              error={formData?.whatsapp && !validatePhone(formData?.whatsapp) ? 'Invalid phone number' : ''}
             />
             <Input
               label="Email"
@@ -166,6 +196,7 @@ const AddCreatorModal = ({ isOpen, onClose, onCreatorAdded }) => {
               value={formData?.email}
               onChange={(e) => handleChange('email', e?.target?.value)}
               placeholder="email@example.com"
+              error={formData?.email && !validateEmail(formData?.email) ? 'Invalid email address' : ''}
             />
           </div>
 

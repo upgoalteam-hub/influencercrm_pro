@@ -1,150 +1,187 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// supabase/functions/admin-users/index.ts
+/// <reference path="./types.d.ts" />
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Missing Authorization header')
     }
 
-    // Create Supabase client with service role key for admin operations
-    const supabaseAdmin = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
 
-    // Parse request body
-    const { email, password, fullName, roleId, isActive } = await req.json();
+    // Verify the token and get user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseClient.auth.getUser()
 
-    // Validate required fields
-    if (!email || !password || !fullName || !roleId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: email, password, fullName, roleId' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (authError || !user) {
+      throw new Error('Unauthorized')
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return new Response(
-        JSON.stringify({ error: 'Password must be at least 6 characters long' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName
-      }
-    });
-
-    if (authError) {
-      console.error('Error creating auth user:', authError);
-      return new Response(
-        JSON.stringify({ error: authError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Wait a moment for the trigger to create the user record
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Update the user's role in the users table
-    const { data: userData, error: updateError } = await supabaseAdmin
+    // Check if user has admin role
+    const { data: userData, error: userError } = await supabaseClient
       .from('users')
-      .update({ 
-        role_id: roleId,
-        is_active: isActive !== undefined ? isActive : true
-      })
-      .eq('email', email)
-      .select(`
-        *,
-        user_roles (
-          id,
-          role_name,
-          display_name,
-          permissions
-        )
-      `)
-      .single();
+      .select('roleId, userRoles:roleId(roleName)')
+      .eq('id', user.id)
+      .single()
 
-    if (updateError) {
-      console.error('Error updating user role:', updateError);
-      // Don't fail completely - the user was created in auth, just log the error
-      console.warn('User created in auth but role update failed:', updateError);
+    if (userError) throw userError
+
+    const isAdmin = ['super_admin', 'admin'].includes(userData?.userRoles?.roleName)
+    if (!isAdmin) {
+      throw new Error('Insufficient permissions')
     }
 
-    // If user record doesn't exist yet (trigger didn't fire), create it manually
-    if (!userData && authData?.user) {
-      const { data: newUserData, error: insertError } = await supabaseAdmin
-        .from('users')
-        .insert({
-          auth_id: authData.user.id,
-          email: email,
-          full_name: fullName,
-          role_id: roleId,
-          is_active: isActive !== undefined ? isActive : true
-        })
-        .select(`
-          *,
-          user_roles (
-            id,
-            role_name,
-            display_name,
-            permissions
-          )
-        `)
-        .single();
+    // Handle different methods
+    switch (req.method) {
+      case 'GET': {
+        const { data: users, error } = await supabaseClient
+          .from('users')
+          .select(`
+            *,
+            userRoles:roleId (
+              roleName,
+              displayName
+            )
+          `)
+          .order('createdAt', { ascending: false })
 
-      if (insertError) {
-        console.error('Error creating user record:', insertError);
+        if (error) throw error
+
         return new Response(
-          JSON.stringify({ error: 'User created in auth but failed to create user record: ' + insertError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+          JSON.stringify({ data: users }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        )
       }
 
-      return new Response(
-        JSON.stringify({ data: newUserData }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      case 'POST': {
+        const body = await req.json()
+        const { email, password, fullName, roleId, isActive } = body
 
-    return new Response(
-      JSON.stringify({ data: userData }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+        // Create auth user
+        const { data: authUser, error: createError } = await supabaseClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: fullName },
+        })
+
+        if (createError) throw createError
+
+        // If user record doesn't exist yet (trigger didn't fire), create it manually
+        const { data: userData, error: userError } = await supabaseClient
+          .from('users')
+          .select('id')
+          .eq('id', authUser.user.id)
+          .single()
+
+        if (!userData) {
+          const { data: newUserData, error: insertError } = await supabaseClient
+            .from('users')
+            .insert({
+              id: authUser.user.id,
+              email,
+              fullName,
+              roleId,
+              isActive: isActive ?? true,
+              createdAt: new Date().toISOString(),
+            })
+            .select(`
+              *,
+              userRoles:roleId (
+                roleName,
+                displayName
+              )
+            `)
+            .single()
+
+          if (insertError) {
+            console.error('Error creating user record:', insertError)
+            return new Response(
+              JSON.stringify({ error: 'User created in auth but failed to create user record: ' + insertError.message }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+
+          return new Response(
+            JSON.stringify({ data: newUserData }),
+            { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Create user profile
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('users')
+          .update({
+            email,
+            fullName,
+            roleId,
+            isActive: isActive ?? true,
+          })
+          .eq('id', authUser.user.id)
+          .select(`
+            *,
+            userRoles:roleId (
+              roleName,
+              displayName
+            )
+          `)
+          .single()
+
+        if (profileError) {
+          // Rollback: delete auth user if profile creation fails
+          await supabaseClient.auth.admin.deleteUser(authUser.user.id)
+          throw profileError
+        }
+
+        return new Response(
+          JSON.stringify({ data: profile }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 201,
+          }
+        )
+      }
+
+      default:
+        return new Response(
+          JSON.stringify({ error: 'Method not allowed' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 405,
+          }
+        )
+    }
   } catch (error) {
-    console.error('Error in create-user function:', error);
+    console.error('Error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      }
+    )
   }
-});
-
+})
