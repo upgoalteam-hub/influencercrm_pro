@@ -125,7 +125,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
   if (!stableCreators || stableCreators.length === 0) {
     return (
       <div className="overflow-x-auto table-container">
-        <table className="w-full" style={{ tableLayout: 'fixed', minWidth: '1400px' }}>
+        <table className="w-full" style={{ tableLayout: 'auto', minWidth: '1400px' }}>
           <colgroup>
             <col style={{ width: STICKY_COLUMNS.checkbox.width, minWidth: STICKY_COLUMNS.checkbox.width, position: 'sticky', left: STICKY_COLUMNS.checkbox.left, zIndex: 25 }} /> {/* Checkbox */}
             <col style={{ width: STICKY_COLUMNS.sr_no.width, minWidth: STICKY_COLUMNS.sr_no.width, position: 'sticky', left: STICKY_COLUMNS.sr_no.left, zIndex: 25 }} /> {/* sr_no */}
@@ -257,7 +257,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 <td className="px-4 py-3 sticky left-12 z-30 bg-card border-r border-border/50 shadow-sm">
                   <div className="text-sm text-foreground truncate">{creator?.sr_no || 'N/A'}</div>
                 </td>
-                <td className="px-4 py-3 sticky left-20 z-30 bg-card border-r border-border/50 shadow-sm">
+                <td className="px-4 py-3 sticky left-20 z-30 bg-card border-r border-border/50 shadow-sm relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.name}
                     creatorId={creator?.id}
@@ -266,7 +266,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm font-medium text-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.instagram_link}
                     creatorId={creator?.id}
@@ -276,7 +276,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-primary hover:underline flex items-center gap-1 truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.followers_tier}
                     creatorId={creator?.id}
@@ -285,7 +285,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.state}
                     creatorId={creator?.id}
@@ -294,7 +294,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.city}
                     creatorId={creator?.id}
@@ -303,7 +303,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.whatsapp}
                     creatorId={creator?.id}
@@ -313,7 +313,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.email}
                     creatorId={creator?.id}
@@ -323,7 +323,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-muted-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.gender}
                     creatorId={creator?.id}
@@ -334,7 +334,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-foreground capitalize truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.username}
                     creatorId={creator?.id}
@@ -343,7 +343,7 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                     className="text-sm text-foreground truncate"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 relative" style={{ position: 'relative' }}>
                   <EditableCell
                     value={creator?.sheet_source}
                     creatorId={creator?.id}

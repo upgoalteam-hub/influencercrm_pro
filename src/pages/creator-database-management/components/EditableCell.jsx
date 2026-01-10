@@ -34,13 +34,15 @@ const EditableCell = ({
       inputRef.current.focus();
       inputRef.current.select();
       
-      // Expand cell in-place for text-heavy columns
-      if (shouldExpand && cellRef.current) {
-        cellRef.current.style.minWidth = '250px';
+      // Expand cell for all columns during edit - Excel-like behavior
+      if (cellRef.current) {
+        cellRef.current.style.minWidth = '150px';
         cellRef.current.style.width = 'auto';
+        cellRef.current.style.position = 'relative';
+        cellRef.current.style.zIndex = '50';
       }
     }
-  }, [isEditing, shouldExpand]);
+  }, [isEditing]);
 
   const handleDoubleClick = () => {
     if (!isEditing) {
@@ -123,17 +125,19 @@ const EditableCell = ({
   };
 
   const resetCellWidth = () => {
-    if (cellRef.current && isTextHeavy) {
+    if (cellRef.current) {
       cellRef.current.style.minWidth = '';
       cellRef.current.style.width = '';
+      cellRef.current.style.position = '';
+      cellRef.current.style.zIndex = '';
     }
   };
 
   const renderInput = () => {
     const baseInputClasses = `
-      w-full px-2 py-1 text-sm 
-      focus:outline-none focus:ring-1 focus:ring-blue-400
-      ${error ? 'border-2 border-red-400 bg-red-50' : 'border border-blue-500 bg-white'}
+      w-full px-2 py-1 text-sm bg-white border border-blue-500
+      focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-600
+      ${error ? 'border-2 border-red-400 bg-red-50' : ''}
     `;
 
     // Add safety check for options
@@ -251,13 +255,17 @@ const EditableCell = ({
   return (
     <div 
       ref={cellRef}
-      className={`relative group ${className} ${shouldExpand ? 'min-w-[250px] w-auto' : ''}`}
+      className={`relative group flex items-center ${className} ${isEditing ? 'min-w-[150px] w-auto z-50' : ''}`}
       onDoubleClick={handleDoubleClick}
+      style={{
+        position: isEditing ? 'relative' : 'static',
+        zIndex: isEditing ? 50 : 'auto'
+      }}
     >
       {isEditing ? (
-        // In-place editing - clean flex layout
-        <div className="flex items-center gap-2 w-full">
-          <div className="flex-1 min-w-0">
+        // Excel-like inline editing - clean flex layout
+        <div className="flex items-center gap-2 w-full min-w-[150px]">
+          <div className="flex-1 min-w-[100px]">
             {renderInput()}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -267,14 +275,14 @@ const EditableCell = ({
               <>
                 <button
                   onClick={handleSave}
-                  className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                  className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
                   title="Save (Enter)"
                 >
                   <Check className="w-3 h-3" />
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                   title="Cancel (Escape)"
                 >
                   <X className="w-3 h-3" />
