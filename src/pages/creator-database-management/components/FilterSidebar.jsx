@@ -16,8 +16,17 @@ const FilterSection = React.memo(({
   expandedSections, 
   toggleSection, 
   filters, 
-  handleCheckboxChange 
+  handleCheckboxChange,
+  handleSelectAll 
 }) => {
+  const currentValues = filters?.[filterKey] || [];
+  const isAllSelected = items?.length > 0 && currentValues?.length === items?.length;
+  const isPartiallySelected = currentValues?.length > 0 && currentValues?.length < items?.length;
+
+  const handleSelectAllChange = () => {
+    handleSelectAll(filterKey, items?.map(item => item?.value) || []);
+  };
+
   return (
     <div className="border-b border-border">
       <button
@@ -67,21 +76,38 @@ const FilterSection = React.memo(({
               <span className="text-xs text-muted-foreground">No {title.toLowerCase()} available</span>
             </div>
           ) : (
-            <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
-              {items?.map((item) => (
-                <div key={item?.value} className="flex items-center justify-between">
+            <>
+              {/* Select All Checkbox */}
+              {items?.length > 0 && (
+                <div className="flex items-center justify-between pb-2 border-b border-border/50">
                   <Checkbox
-                    label={item?.label}
-                    checked={filters?.[filterKey]?.includes(item?.value) || false}
-                    onChange={() => handleCheckboxChange(filterKey, item?.value)}
+                    label="Select All"
+                    checked={isAllSelected}
+                    onChange={handleSelectAllChange}
                     size="sm"
+                    indeterminate={isPartiallySelected}
                   />
-                  {item?.count !== null && (
-                    <span className="text-xs text-muted-foreground">{item?.count}</span>
-                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {currentValues?.length}/{items?.length} selected
+                  </span>
                 </div>
-              ))}
-            </div>
+              )}
+              <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
+                {items?.map((item) => (
+                  <div key={item?.value} className="flex items-center justify-between">
+                    <Checkbox
+                      label={item?.label}
+                      checked={filters?.[filterKey]?.includes(item?.value) || false}
+                      onChange={() => handleCheckboxChange(filterKey, item?.value)}
+                      size="sm"
+                    />
+                    {item?.count !== null && (
+                      <span className="text-xs text-muted-foreground">{item?.count}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -99,6 +125,9 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     tags: true,
     status: true
   });
+
+  // Global state for managing all filter accordions
+  const [isAllFiltersExpanded, setIsAllFiltersExpanded] = useState(true);
 
   // Provided categories from sheet_source column
   const allCategories = [
@@ -350,6 +379,35 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     }));
   };
 
+  // Global toggle function for all filters
+  const toggleAllFilters = () => {
+    const newExpandedState = !isAllFiltersExpanded;
+    setIsAllFiltersExpanded(newExpandedState);
+    
+    setExpandedSections({
+      category: newExpandedState,
+      city: newExpandedState,
+      state: newExpandedState,
+      followers: newExpandedState,
+      engagement: newExpandedState,
+      tags: newExpandedState,
+      status: newExpandedState
+    });
+  };
+
+  // Select all function for a specific filter category
+  const handleSelectAll = (filterKey, allValues) => {
+    const currentValues = filters?.[filterKey] || [];
+    
+    // If all items are already selected, deselect all
+    if (currentValues?.length === allValues?.length && allValues?.length > 0) {
+      onFilterChange(filterKey, []);
+    } else {
+      // Otherwise, select all
+      onFilterChange(filterKey, allValues);
+    }
+  };
+
   const handleCategorySearch = (e) => {
     setCategorySearchQuery(e.target.value);
   };
@@ -392,7 +450,10 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
 
   return (
     <div className="h-full flex flex-col bg-card border-r border-border">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+      <div 
+        className="flex items-center justify-between px-4 py-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={toggleAllFilters}
+      >
         <div className="flex items-center gap-2">
           <Icon name="Filter" size={20} color="var(--color-primary)" />
           <h2 className="text-lg font-semibold text-foreground">Filters</h2>
@@ -402,14 +463,24 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
             </span>
           )}
         </div>
-        {activeFilterCount > 0 && (
-          <button
-            onClick={handleClearAll}
-            className="text-xs text-primary hover:underline"
-          >
-            Clear All
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {activeFilterCount > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClearAll();
+              }}
+              className="text-xs text-primary hover:underline"
+            >
+              Clear All
+            </button>
+          )}
+          <Icon
+            name={isAllFiltersExpanded ? 'ChevronUp' : 'ChevronDown'}
+            size={16}
+            className={`text-muted-foreground transition-transform duration-200 ${isAllFiltersExpanded ? '' : 'rotate-180'}`}
+          />
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <FilterSection
@@ -425,6 +496,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
         <FilterSection
           title="City"
@@ -439,6 +511,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
         <FilterSection
           title="State"
@@ -453,6 +526,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
         <FilterSection
           title="Followers"
@@ -467,6 +541,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
         <FilterSection
           title="Engagement Rate"
@@ -477,6 +552,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
         <FilterSection
           title="Tags"
@@ -487,6 +563,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
         <FilterSection
           title="Status"
@@ -497,6 +574,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           toggleSection={toggleSection}
           filters={filters}
           handleCheckboxChange={handleCheckboxChange}
+          handleSelectAll={handleSelectAll}
         />
       </div>
       <div className="px-4 py-3 border-t border-border bg-muted/30">
