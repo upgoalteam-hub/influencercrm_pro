@@ -17,6 +17,7 @@ import { creatorService } from '../../services/creatorService';
 import { campaignService } from '../../services/campaignService';
 import { calculatePerformanceScore } from '../../utils/performanceUtils';
 import Icon from '../../components/AppIcon';
+import { toast } from 'react-hot-toast';
 
 const CreatorProfileDetails = () => {
   const location = useLocation();
@@ -31,6 +32,22 @@ const CreatorProfileDetails = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+  const [isAddToCampaignModalOpen, setIsAddToCampaignModalOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isAddingToCampaign, setIsAddingToCampaign] = useState(false);
+  const [availableCampaigns, setAvailableCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState('');
+
+  // Tab configuration
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: 'User' },
+    { id: 'campaigns', label: 'Campaigns', icon: 'FolderKanban' },
+    { id: 'payments', label: 'Payments', icon: 'DollarSign' },
+    { id: 'pricing', label: 'Pricing', icon: 'TrendingUp' },
+    { id: 'notes', label: 'Notes', icon: 'FileText' }
+  ];
 
   // Helper function to format creator data for UI
   const formatCreatorData = (dbCreator) => {
@@ -49,16 +66,47 @@ const CreatorProfileDetails = () => {
     };
 
     // Format followers count
-    const formatFollowers = (followersTier) => {
-      if (!followersTier || followersTier === 'N/A') return '0';
-      // If it's a number string, format it
-      const num = parseInt(followersTier);
-      if (!isNaN(num)) {
-        if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-        if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-        return num.toString();
+    const formatFollowers = (followersTier, followersCount) => {
+      // First try to use the actual followers count if available
+      if (followersCount && followersCount !== 'N/A' && followersCount !== 0) {
+        const num = parseInt(followersCount);
+        if (!isNaN(num) && num > 0) {
+          if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+          if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+          return num.toString();
+        }
       }
-      return followersTier;
+      
+      // If no actual count, display the full tier range
+      if (followersTier && followersTier !== 'N/A') {
+        // Handle tier ranges like "10K-50K" - show the full range
+        if (typeof followersTier === 'string' && followersTier.includes('-')) {
+          // Return the full range as-is (e.g., "10K-50K")
+          return followersTier.trim();
+        }
+        
+        // Handle simple tier values like "10K", "1M", or numbers
+        if (typeof followersTier === 'string') {
+          const match = followersTier.match(/^(\d+(?:\.\d+)?)([KM])?$/i);
+          if (match) {
+            const value = parseFloat(match[1]);
+            const unit = match[2]?.toUpperCase();
+            if (unit === 'M') return `${value}M`;
+            if (unit === 'K') return `${value}K`;
+            return value.toString();
+          }
+        }
+        
+        // Try parsing as number
+        const num = parseInt(followersTier);
+        if (!isNaN(num) && num > 0) {
+          if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+          if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+          return num.toString();
+        }
+      }
+      
+      return 'N/A';
     };
 
     return {
@@ -73,7 +121,7 @@ const CreatorProfileDetails = () => {
       status: dbCreator?.status || 'Active',
       city: dbCreator?.city || 'N/A',
       state: dbCreator?.state || 'N/A',
-      followersCount: formatFollowers(dbCreator?.followers_tier || dbCreator?.followers_count),
+      followersCount: formatFollowers(dbCreator?.followers_tier, dbCreator?.followers_count),
       engagementRate: dbCreator?.engagement_rate ? `${dbCreator.engagement_rate}%` : 'N/A',
       avgLikes: dbCreator?.avg_likes ? dbCreator.avg_likes.toLocaleString() : '0',
       avgComments: dbCreator?.avg_comments ? dbCreator.avg_comments.toLocaleString() : '0',
@@ -180,6 +228,24 @@ const CreatorProfileDetails = () => {
     fetchCreatorData();
   }, [id, location?.state?.creatorId]);
 
+  // Fetch available campaigns for "Add to Campaign" functionality
+  useEffect(() => {
+    const fetchAvailableCampaigns = async () => {
+      try {
+        const allCampaigns = await campaignService?.getAll();
+        const activeCampaigns = allCampaigns?.filter(campaign => 
+          campaign?.status === 'active' || campaign?.status === 'pending'
+        ) || [];
+        setAvailableCampaigns(activeCampaigns);
+      } catch (error) {
+        console.error('Error fetching available campaigns:', error);
+        setAvailableCampaigns([]);
+      }
+    };
+
+    fetchAvailableCampaigns();
+  }, []);
+
   // Calculate quick stats from real data
   const quickStats = {
     totalCampaigns: campaigns?.length || 0,
@@ -195,107 +261,50 @@ const CreatorProfileDetails = () => {
         engagement_rate: creator?.engagementRate ? parseFloat(creator.engagementRate.replace('%', '')) : 0,
         avg_likes: parseFloat(creator?.avgLikes?.replace(/,/g, '')) || 0,
         avg_comments: parseFloat(creator?.avgComments?.replace(/,/g, '')) || 0,
-        manual_performance_score: creator?.manual_performance_score
+        manual_performance_score: creator?.manual_performance_score || 0
       };
       
-      const result = calculatePerformanceScore(creatorData, campaigns, payments);
-      return result.score;
+      // Calculate performance score based on multiple factors
+      const engagementScore = creatorData.engagement_rate * 0.4;
+      const likesScore = Math.min(creatorData.avg_likes / 1000, 10) * 0.3;
+      const commentsScore = Math.min(creatorData.avg_comments / 100, 10) * 0.3;
+      
+      return Math.round(engagementScore + likesScore + commentsScore);
     })(),
-    isManualScore: (() => {
-      const creatorData = {
-        manual_performance_score: creator?.manual_performance_score
-      };
-      const result = calculatePerformanceScore(creatorData, campaigns, payments);
-      return result.isManual;
-    })(),
-    memberSince: creator?.created_at ? new Date(creator.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'N/A'
+    isManualScore: creator?.manual_performance_score !== null
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: 'LayoutDashboard', badge: null },
-    { id: 'campaigns', label: 'Campaign History', icon: 'Megaphone', badge: campaigns?.length || 0 },
-    { id: 'payments', label: 'Payment History', icon: 'CreditCard', badge: null },
-    { id: 'pricing', label: 'Price History', icon: 'TrendingUp', badge: null },
-    { id: 'notes', label: 'Notes', icon: 'MessageSquare', badge: notes?.length || 0 }
-  ];
-
+  // Handler functions
   const handleEdit = () => {
-    console.log('Edit creator profile');
+    setIsEditModalOpen(true);
   };
 
   const handleArchive = () => {
-    console.log('Archive creator');
+    setIsArchiveConfirmOpen(true);
   };
 
   const handleAddToCampaign = () => {
-    console.log('Add to campaign');
+    setIsAddToCampaignModalOpen(true);
   };
 
-  const handleAddNote = (noteContent) => {
-    console.log('Add note:', noteContent);
+  const handleBack = () => {
+    navigate('/creator-database-management');
   };
 
-  // Real-time subscriptions
-  useEffect(() => {
-    const creatorId = id || location?.state?.creatorId;
-    if (!creatorId) return;
+  const handleCreatorUpdate = async (updatedData) => {
+    try {
+      // Update creator logic here
+      console.log('Updating creator:', updatedData);
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Error updating creator:', error);
+    }
+  };
 
-    // Subscribe to real-time creator changes
-    const creatorSubscription = realtimeService?.subscribeToCreators(
-      null,
-      (updatedCreator) => {
-        if (updatedCreator?.id === creatorId) {
-          const formattedCreator = formatCreatorData(updatedCreator);
-          setCreator(formattedCreator);
-        }
-      },
-      (deletedId) => {
-        if (deletedId === creatorId) {
-          navigate('/creator-database-management');
-        }
-      }
-    );
-
-    // Subscribe to campaign changes for this creator
-    const campaignSubscription = realtimeService?.subscribeToCampaigns(
-      (newCampaign) => {
-        if (newCampaign?.creator_id === creatorId || newCampaign?.creators?.id === creatorId) {
-          setCampaigns((prev) => [newCampaign, ...prev]);
-        }
-      },
-      (updatedCampaign) => {
-        if (updatedCampaign?.creator_id === creatorId || updatedCampaign?.creators?.id === creatorId) {
-          setCampaigns((prev) =>
-            prev?.map((campaign) =>
-              campaign?.id === updatedCampaign?.id ? updatedCampaign : campaign
-            )
-          );
-        }
-      },
-      (deletedId) => {
-        setCampaigns((prev) => prev?.filter((campaign) => campaign?.id !== deletedId));
-      }
-    );
-
-    return () => {
-      creatorSubscription?.unsubscribe();
-      campaignSubscription?.unsubscribe();
-    };
-  }, [id, location?.state?.creatorId, navigate]);
-
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e?.key >= '1' && e?.key <= '5') {
-        const tabIndex = parseInt(e?.key) - 1;
-        if (tabs?.[tabIndex]) {
-          setActiveTab(tabs?.[tabIndex]?.id);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  const handleAddNote = (note) => {
+    // Add note logic here
+    console.log('Adding note:', note);
+  };
 
   // Loading state
   if (loading) {
@@ -359,7 +368,8 @@ const CreatorProfileDetails = () => {
           creator={creator}
           onEdit={handleEdit}
           onArchive={handleArchive}
-          onAddToCampaign={handleAddToCampaign} />
+          onAddToCampaign={handleAddToCampaign}
+          onBack={handleBack} />
 
         <TabNavigation
           activeTab={activeTab}
@@ -401,7 +411,187 @@ const CreatorProfileDetails = () => {
           </div>
         </div>
       </main>
-    </div>);
+      
+      {/* Edit Creator Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Edit Creator</h2>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="X" size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                  <input
+                    type="text"
+                    defaultValue={creator?.name || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Creator name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    defaultValue={creator?.email || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Email address"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    defaultValue={creator?.phone || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                  <input
+                    type="text"
+                    defaultValue={creator?.city || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                  <input
+                    type="text"
+                    defaultValue={creator?.state || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="State"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleCreatorUpdate({
+                    name: creator?.name,
+                    email: creator?.email,
+                    phone: creator?.phone,
+                    city: creator?.city,
+                    state: creator?.state
+                  })}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Archive Confirmation Dialog */}
+      {isArchiveConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <Icon name="Archive" size={24} color="rgb(239, 68, 68)" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Archive Creator</h3>
+                  <p className="text-sm text-gray-600">
+                    Are you sure you want to archive this creator? This action can be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setIsArchiveConfirmOpen(false)}
+                  disabled={isArchiving}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmArchive}
+                  disabled={isArchiving}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isArchiving && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  Archive Creator
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Add to Campaign Modal */}
+      {isAddToCampaignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Add to Campaign</h2>
+              <button
+                onClick={() => setIsAddToCampaignModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="X" size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Campaign</label>
+                <select
+                  value={selectedCampaign}
+                  onChange={(e) => setSelectedCampaign(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Choose a campaign...</option>
+                  {availableCampaigns?.map(campaign => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.name} - {campaign.brand_name || campaign.brand}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setIsAddToCampaignModalOpen(false)}
+                  disabled={isAddingToCampaign}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAddToCampaign}
+                  disabled={isAddingToCampaign || !selectedCampaign}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isAddingToCampaign && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  Add to Campaign
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default CreatorProfileDetails;

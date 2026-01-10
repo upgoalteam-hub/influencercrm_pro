@@ -1,7 +1,7 @@
 // src/components/AuthWrapper.jsx
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 
 const AuthWrapper = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);

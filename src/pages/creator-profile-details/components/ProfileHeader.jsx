@@ -3,10 +3,23 @@ import Icon from '../../../components/AppIcon';
 import Image from '../../../components/AppImage';
 import Button from '../../../components/ui/Button';
 
-const ProfileHeader = ({ creator, onEdit, onArchive, onAddToCampaign }) => {
+const ProfileHeader = ({ creator, onEdit, onArchive, onAddToCampaign, onBack }) => {
   return (
     <div className="bg-card border-b border-border sticky top-16 z-50">
       <div className="px-6 py-4">
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center gap-2 mb-4 text-sm">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Icon name="ChevronLeft" size={16} />
+            <span>Creator Database</span>
+          </button>
+          <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
+          <span className="text-foreground font-medium">Profile</span>
+        </div>
+
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4 flex-1 min-w-0">
             <div className="relative flex-shrink-0">

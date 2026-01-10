@@ -1,10 +1,9 @@
 import React from "react";
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useNavigate } from "react-router-dom";
-import ScrollToTop from "components/ScrollToTop";
-import ErrorBoundary from "components/ErrorBoundary";
-import { AuthProvider } from "./contexts/AuthContext";
+import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuth } from './contexts/AuthContext';
-import NotFound from "pages/NotFound";
+import NotFound from "./pages/NotFound";
 import PaymentProcessingCenter from './pages/payment-processing-center';
 import ExecutiveDashboard from './pages/executive-dashboard';
 import LoginAndAuthentication from './pages/login-and-authentication';
@@ -18,38 +17,36 @@ import UserProfile from './pages/user-profile';
 
 const Routes = () => {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <ErrorBoundary>
-          <ScrollToTop />
-          <RouterRoutes>
-            {/* Define your route here */}
-            <Route path="/" element={<LoginAndAuthentication />} />
-            {/* Protect the executive dashboard so unauthenticated users are redirected to login */}
-            <Route
-              path="/executive-dashboard"
-              element={
-                <RequireAuth>
-                  <ExecutiveDashboard />
-                </RequireAuth>
-              }
-            />
-            <Route path="/brand-contact-management" element={<RequireAuth><BrandContactManagement /></RequireAuth>} />
-            <Route path="/payment-processing-center" element={<RequireAuth><PaymentProcessingCenter /></RequireAuth>} />
-            <Route path="/login-and-authentication" element={<LoginAndAuthentication />} />
-            <Route path="/login" element={<LoginAndAuthentication />} />
-            <Route path="/creator-database-management" element={<RequireAuth><CreatorDatabaseManagement /></RequireAuth>} />
-            <Route path="/creator-profile-details/:id" element={<RequireAuth><CreatorProfileDetails /></RequireAuth>} />
-            <Route path="/campaign-management-center" element={<RequireAuth><CampaignManagementCenter /></RequireAuth>} />
-            <Route path="/bulk-instagram-processor" element={<RequireAuth><BulkInstagramProcessor /></RequireAuth>} />
-            <Route path="/system-settings-user-management" element={<RequireAuth><SystemSettingsUserManagement /></RequireAuth>} />
-            <Route path="/user-profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
-            <Route path="/logout" element={<LogoutRoute />} />
-            <Route path="*" element={<NotFound />} />
-          </RouterRoutes>
-        </ErrorBoundary>
-      </BrowserRouter>
-    </AuthProvider>
+    <BrowserRouter>
+      <ErrorBoundary>
+        <ScrollToTop />
+        <RouterRoutes>
+          {/* Define your route here */}
+          <Route path="/" element={<LoginAndAuthentication />} />
+          {/* Protect the executive dashboard so unauthenticated users are redirected to login */}
+          <Route
+            path="/executive-dashboard"
+            element={
+              <RequireAuth>
+                <ExecutiveDashboard />
+              </RequireAuth>
+            }
+          />
+          <Route path="/payment-processing-center" element={<RequireAuth><PaymentProcessingCenter /></RequireAuth>} />
+          <Route path="/login-and-authentication" element={<LoginAndAuthentication />} />
+          <Route path="/login" element={<LoginAndAuthentication />} />
+          <Route path="/creator-database-management" element={<RequireAuth><CreatorDatabaseManagement /></RequireAuth>} />
+          <Route path="/creator-profile-details/:id" element={<RequireAuth><CreatorProfileDetails /></RequireAuth>} />
+          <Route path="/campaign-management-center" element={<RequireAuth><CampaignManagementCenter /></RequireAuth>} />
+          <Route path="/brand-contact-management" element={<RequireAuth><BrandContactManagement /></RequireAuth>} />
+          <Route path="/bulk-instagram-processor" element={<RequireAuth><BulkInstagramProcessor /></RequireAuth>} />
+          <Route path="/system-settings-user-management" element={<RequireAuth><SystemSettingsUserManagement /></RequireAuth>} />
+          <Route path="/user-profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
+          <Route path="/logout" element={<LogoutRoute />} />
+          <Route path="*" element={<NotFound />} />
+        </RouterRoutes>
+      </ErrorBoundary>
+    </BrowserRouter>
   );
 };
 
