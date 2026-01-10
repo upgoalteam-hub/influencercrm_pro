@@ -28,6 +28,7 @@ export default function CreatorDatabaseManagement() {
   const [filters, setFilters] = useState({
     category: [],
     city: [],
+    state: [],
     followers: [],
     engagement: [],
     tags: [],
@@ -181,6 +182,7 @@ export default function CreatorDatabaseManagement() {
       setFilters({
         category: [],
         city: [],
+        state: [],
         followers: [],
         engagement: [],
         tags: [],

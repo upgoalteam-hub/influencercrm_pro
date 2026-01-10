@@ -93,6 +93,7 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   const [expandedSections, setExpandedSections] = useState({
     category: true,
     city: true,
+    state: true,
     followers: true,
     engagement: true,
     tags: true,
@@ -114,6 +115,10 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   const [cities, setCities] = useState([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citySearchQuery, setCitySearchQuery] = useState('');
+
+  const [states, setStates] = useState([]);
+  const [statesLoading, setStatesLoading] = useState(true);
+  const [stateSearchQuery, setStateSearchQuery] = useState('');
 
   const [followers, setFollowers] = useState([]);
   const [followersLoading, setFollowersLoading] = useState(true);
@@ -161,6 +166,38 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     };
 
     fetchCities();
+  }, []);
+
+  useEffect(() => {
+    const fetchStates = async () => {
+      try {
+        console.log('Fetching states from database...');
+        const uniqueStates = await creatorService.getUniqueValues('state');
+        console.log('Raw states from database:', uniqueStates);
+        console.log('Number of states found:', uniqueStates.length);
+        
+        const stateOptions = uniqueStates
+          .filter(state => state && state.trim() !== '')
+          .map(state => ({
+            value: state, // Use actual state name for API filtering
+            label: state,
+            count: null
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Processed state options:', stateOptions);
+        console.log('Number of processed states:', stateOptions.length);
+        
+        setStates(stateOptions);
+      } catch (error) {
+        console.error('Error fetching states:', error);
+        setStates([]);
+      } finally {
+        setStatesLoading(false);
+      }
+    };
+
+    fetchStates();
   }, []);
 
   useEffect(() => {
@@ -321,6 +358,10 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     setCitySearchQuery(e.target.value);
   };
 
+  const handleStateSearch = (e) => {
+    setStateSearchQuery(e.target.value);
+  };
+
   const handleFollowersSearch = (e) => {
     setFollowersSearchQuery(e.target.value);
   };
@@ -335,6 +376,12 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
     cities.filter(city =>
       city.label.toLowerCase().includes(citySearchQuery.toLowerCase())
     ), [cities, citySearchQuery]
+  );
+
+  const filteredStates = useMemo(() => 
+    states.filter(state =>
+      state.label.toLowerCase().includes(stateSearchQuery.toLowerCase())
+    ), [states, stateSearchQuery]
   );
 
   const filteredFollowers = useMemo(() => 
@@ -388,6 +435,20 @@ const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
           showSearch={true}
           searchQuery={citySearchQuery}
           onSearchChange={handleCitySearch}
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          filters={filters}
+          handleCheckboxChange={handleCheckboxChange}
+        />
+        <FilterSection
+          title="State"
+          items={filteredStates}
+          filterKey="state"
+          icon="Map"
+          loading={statesLoading}
+          showSearch={true}
+          searchQuery={stateSearchQuery}
+          onSearchChange={handleStateSearch}
           expandedSections={expandedSections}
           toggleSection={toggleSection}
           filters={filters}
