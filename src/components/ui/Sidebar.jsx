@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
-import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { stateManagementService } from '../../services/stateManagementService';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [unmappedStatesCount, setUnmappedStatesCount] = useState(0);
 
   // Keyboard navigation support
   const handleKeyDown = (e) => {
@@ -30,6 +32,36 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
     };
   }, [isMobileOpen]);
 
+  // Fetch unmapped states count
+  useEffect(() => {
+    const fetchUnmappedStatesCount = async () => {
+      try {
+        const uncleanedStates = await stateManagementService.getUncleanedStates();
+        setUnmappedStatesCount(uncleanedStates.length);
+      } catch (error) {
+        console.error('Error fetching unmapped states count:', error);
+        setUnmappedStatesCount(0);
+      }
+    };
+
+    fetchUnmappedStatesCount();
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnmappedStatesCount, 30000);
+    
+    // Listen for state mappings update events
+    const handleStateMappingsUpdate = () => {
+      fetchUnmappedStatesCount();
+    };
+    
+    window.addEventListener('stateMappingsUpdated', handleStateMappingsUpdate);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('stateMappingsUpdated', handleStateMappingsUpdate);
+    };
+  }, []);
+
   const navigation = [
     { name: 'Executive Dashboard', href: '/executive-dashboard', icon: Home },
     { name: 'Creator Database', href: '/creator-database-management', icon: Database },
@@ -38,6 +70,7 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
     { name: 'Brand & Contact', href: '/brand-contact-management', icon: Users },
     { name: 'Bulk Instagram Processor', href: '/bulk-instagram-processor', icon: LinkIcon },
     { name: 'System Settings', href: '/system-settings-user-management', icon: Settings },
+    { name: 'State Management', href: '/admin-state-management', icon: MapPin },
   ];
 
   const handleNavigation = (path) => {
@@ -79,14 +112,6 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
             <img src="/assets/images/upgoal-logo.svg" alt="Upgoal Media" className="w-8 h-6 object-contain" />
           </div>
           <span className="sidebar-logo-text">Upgoal Media</span>
-          <button
-            onClick={onToggleCollapse}
-            className="sidebar-toggle-btn"
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
         </div>
 
         <nav className="sidebar-nav" role="navigation" aria-label="Main navigation">
@@ -101,6 +126,26 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
             >
               <Icon name={item?.icon} size={20} />
               <span className="sidebar-nav-item-text">{item?.name}</span>
+              {item?.href === '/admin-state-management' && unmappedStatesCount > 0 && (
+                <span 
+                  className="sidebar-nav-item-badge"
+                  style={{
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    minWidth: '20px',
+                    height: '20px',
+                    borderRadius: '9999px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    padding: '0 6px'
+                  }}
+                >
+                  {unmappedStatesCount > 99 ? '99+' : unmappedStatesCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>

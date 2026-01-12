@@ -13,9 +13,14 @@ export default defineConfig({
   },
   plugins: [tsconfigPaths(), react(), tagger()],
   server: {
-    port: 5000,
+    port: 4000,
     host: "0.0.0.0",
     strictPort: true,
     allowedHosts: true
+  },
+  esbuild: {
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    include: /.*\.(js|jsx)$/
   }
 });
