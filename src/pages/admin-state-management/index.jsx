@@ -9,6 +9,7 @@ import { useAudit } from '../../hooks/useAudit';
 import { enhancedFuzzyMatch, batchProcessStates } from '../../utils/fuzzyMatching';
 import { ChangeHistoryIcon, ChangeHistoryModal } from '../../components/audit/AuditLogComponents';
 import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Info, Clock } from 'lucide-react';
+import { useToast } from '../../components/ui/ToastContainer';
 
 const STANDARD_INDIAN_STATES = [
   'Andhra Pradesh',
@@ -54,12 +55,11 @@ export default function AdminStateManagement() {
   const [uncleanedStates, setUncleanedStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [processingBatch, setProcessingBatch] = useState(false);
   const [batchResults, setBatchResults] = useState(null);
   const [changeHistoryModal, setChangeHistoryModal] = useState({ isOpen: false, recordId: null });
   const { userProfile } = useAuth();
+  const { toast } = useToast();
   
   // Use custom hook for state management
   const {
@@ -93,21 +93,26 @@ export default function AdminStateManagement() {
   const fetchUncleanedStates = async () => {
     try {
       setLoading(true);
-      setError(null);
-      setSuccess(null);
       const states = await stateManagementService.getUncleanedStates();
       setUncleanedStates(states);
       
       // Initialize mappings using custom hook
       initializeMappings(states);
     } catch (err) {
-      setError('Failed to fetch uncleaned states: ' + err.message);
+      toast.error('Failed to fetch uncleaned states: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleMappingChange = (uncleanedState, standardState) => {
+    // Check if uncleaned state contains a slash - if so, disable auto-mapping
+    const hasSlash = /\//.test(uncleanedState);
+    if (hasSlash && standardState) {
+      // Allow manual mapping but show warning
+      console.warn(`State "${uncleanedState}" contains a slash - manual mapping recommended`);
+    }
+    
     // Calculate confidence for the selected mapping
     const confidence = standardState ? 
       enhancedFuzzyMatch(uncleanedState, STANDARD_INDIAN_STATES).confidence : 0;
@@ -118,23 +123,20 @@ export default function AdminStateManagement() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      setError(null);
-      setSuccess(null);
       
       // Validate mappings
       const { isValid, errors, validMappings } = validation;
       
       if (!isValid) {
-        setError(errors.join(', '));
-        showToast(errors.join(', '), 'warning');
+        toast.warning(errors.join(', '));
         return;
       }
 
       // Create audit context for this operation
       const auditContext = {
-        userId: userProfile?.id,
-        userEmail: userProfile?.email,
-        sessionId: sessionStorage.getItem('audit_session_id')
+        userId: userProfile?.id || 'anonymous',
+        userEmail: userProfile?.email || 'anonymous@example.com',
+        sessionId: sessionStorage.getItem('audit_session_id') || 'session_' + Date.now()
       };
 
       // Use bulk update with audit logging
@@ -158,8 +160,7 @@ export default function AdminStateManagement() {
       }
       
       // Show success toast
-      showToast(`Successfully updated ${result.totalUpdated || 0} records across ${validMappings.length} state mappings`, 'success');
-      setSuccess(`Updated ${result.totalUpdated || 0} records successfully`);
+      toast.success(`Successfully updated ${result.totalUpdated || 0} records across ${validMappings.length} state mappings`);
       
       // Refresh the uncleaned states list
       await fetchUncleanedStates();
@@ -171,8 +172,7 @@ export default function AdminStateManagement() {
       
     } catch (err) {
       console.error('Save error:', err);
-      setError('Failed to update state names: ' + err.message);
-      showToast('Failed to update state names: ' + err.message, 'error');
+      toast.error('Failed to update state names: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -180,62 +180,24 @@ export default function AdminStateManagement() {
 
   const handleReset = () => {
     resetMappings();
-    setError(null);
-    setSuccess(null);
-    showToast('Selections reset to original state', 'info');
+    toast.info('Selections reset to original state');
   };
 
-  // Toast notification function
-  const showToast = (message, type = 'info') => {
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
-    
-    // Set colors based on type
-    const colors = {
-      success: 'bg-green-500 text-white',
-      error: 'bg-red-500 text-white',
-      info: 'bg-blue-500 text-white',
-      warning: 'bg-yellow-500 text-white'
-    };
-    
-    toast.className += ` ${colors[type] || colors.info}`;
-    toast.innerHTML = `
-      <div class="flex items-center">
-        <span class="font-medium">${message}</span>
-        <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-          </svg>
-        </button>
-      </div>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // Animate in
-    setTimeout(() => {
-      toast.classList.remove('translate-x-full');
-      toast.classList.add('translate-x-0');
-    }, 100);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-      if (toast.parentElement) {
-        toast.classList.remove('translate-x-0');
-        toast.classList.add('translate-x-full');
-        setTimeout(() => toast.remove(), 300);
-      }
-    }, 5000);
-  };
 
   const handleAutoSelectMatches = async () => {
     try {
       setProcessingBatch(true);
-      setError(null);
       
-      // Process all states with fuzzy matching
-      const batchResult = batchProcessStates(uncleanedStates, STANDARD_INDIAN_STATES, {
+      // Filter out states with slashes to prevent data corruption
+      const filteredStates = uncleanedStates.filter(state => !/\//.test(state));
+      
+      if (filteredStates.length < uncleanedStates.length) {
+        const excludedCount = uncleanedStates.length - filteredStates.length;
+        toast.warning(`${excludedCount} states with slashes excluded from auto-mapping`);
+      }
+      
+      // Process filtered states with fuzzy matching
+      const batchResult = batchProcessStates(filteredStates, STANDARD_INDIAN_STATES, {
         confidenceThreshold: 90,
         autoSelectHighConfidence: true,
         batchSize: 100
@@ -266,12 +228,11 @@ export default function AdminStateManagement() {
       
       setBatchResults(batchResult);
       
-      showToast(`Auto-selected ${highConfidenceUpdates.length} high-confidence matches (>90%)`, 'success');
+      toast.success(`Auto-selected ${highConfidenceUpdates.length} high-confidence matches (>90%)`);
       
     } catch (err) {
       console.error('Auto-select error:', err);
-      setError('Failed to auto-select matches: ' + err.message);
-      showToast('Failed to auto-select matches: ' + err.message, 'error');
+      toast.error('Failed to auto-select matches: ' + err.message);
     } finally {
       setProcessingBatch(false);
     }
@@ -282,16 +243,14 @@ export default function AdminStateManagement() {
       setChangeHistoryModal({ isOpen: true, recordId });
     } catch (err) {
       console.error('Error viewing change history:', err);
-      showToast('Failed to load change history', 'error');
+      toast.error('Failed to load change history');
     }
   };
 
   const handleClearAll = () => {
     clearAllMappings();
-    setError(null);
-    setSuccess(null);
     setBatchResults(null);
-    showToast('All selections cleared', 'info');
+    toast.info('All selections cleared');
   };
 
   if (loading) {
@@ -309,33 +268,19 @@ export default function AdminStateManagement() {
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
       
-      {/* Sidebar Toggle Button */}
-      <button
-        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        className="fixed top-20 left-0 z-40 bg-white border border-r border-gray-200 rounded-r-lg p-2 shadow-md hover:bg-gray-50 transition-all duration-200"
-        style={{ 
-          left: isSidebarCollapsed ? '0px' : '280px',
-          transition: 'left 0.3s ease-in-out'
-        }}
-        title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-      </button>
-      
       <div 
-        className="flex-1 flex flex-col transition-all duration-300 ease-in-out"
-        style={{ 
-          marginLeft: isSidebarCollapsed ? '0px' : '0px',
-          paddingLeft: isSidebarCollapsed ? '48px' : '328px'
-        }}
+        className={`flex-1 flex flex-col transition-all duration-300 ease-in-out main-content ${
+          isSidebarCollapsed ? 'sidebar-collapsed' : ''
+        }`}
       >
         <Header 
+          isCollapsed={isSidebarCollapsed}
           title="State Management Dashboard"
           subtitle="Clean up and standardize state names in the database"
         />
         
-        {/* Fixed Header Action Bar */}
-        <div className="fixed top-16 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        {/* Sticky Action Bar */}
+        <div className="sticky top-16 z-30 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
           <div className="max-w-7xl mx-auto flex flex-wrap gap-3 items-center justify-between">
             <div className="flex flex-wrap gap-3">
               <Button
@@ -375,36 +320,6 @@ export default function AdminStateManagement() {
         
         <main className="flex-1 p-6 pt-8">
           <div className="max-w-7xl mx-auto">
-            {/* Alert Messages */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-green-800">{success}</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Statistics */}
             <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -483,11 +398,12 @@ export default function AdminStateManagement() {
                         const confidence = confidenceScores[uncleanedState] || 0;
                         const isSelected = mappings[uncleanedState] || '';
                         const hasPendingChange = pendingChanges.has(uncleanedState);
+                        const hasSlash = /\//.test(uncleanedState);
                         
                         return (
                           <tr 
                             key={uncleanedState} 
-                            className={`hover:bg-gray-50 ${hasPendingChange ? 'bg-yellow-50' : ''}`}
+                            className={`hover:bg-gray-50 ${hasPendingChange ? 'bg-yellow-50' : ''} ${hasSlash ? 'bg-orange-50' : ''}`}
                           >
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {index + 1}
@@ -496,6 +412,12 @@ export default function AdminStateManagement() {
                               <div className="text-sm font-medium text-gray-900">
                                 {uncleanedState}
                               </div>
+                              {hasSlash && (
+                                <div className="text-xs text-orange-600 mt-1">
+                                  <AlertCircle className="inline w-3 h-3 mr-1" />
+                                  Contains slash - manual mapping recommended
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {confidence > 0 ? (

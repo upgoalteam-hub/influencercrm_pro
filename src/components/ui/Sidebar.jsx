@@ -107,6 +107,15 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
+        {/* Sidebar Toggle Button */}
+        <button
+          onClick={onToggleCollapse}
+          className="sidebar-toggle-btn absolute top-2 right-2 z-50 bg-white border border-gray-200 rounded-md p-2 shadow-md hover:bg-gray-50 transition-all duration-200"
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+        
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <img src="/assets/images/upgoal-logo.svg" alt="Upgoal Media" className="w-8 h-6 object-contain" />

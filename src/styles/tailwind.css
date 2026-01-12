@@ -160,11 +160,13 @@
   }
 
   .sidebar-toggle-btn {
-    @apply flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 ease-in-out;
+    @apply absolute top-2 right-2 z-[101] flex items-center justify-center w-8 h-8 bg-white border border-gray-200 rounded-md shadow-md text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 ease-in-out;
+    position: relative;
   }
 
   .sidebar.collapsed .sidebar-toggle-btn {
-    @apply absolute right-2;
+    @apply absolute top-2 right-2 z-[101];
+    position: relative;
   }
 
   .sidebar-nav {
@@ -213,6 +215,8 @@
   /* Header Styles */
   .app-header {
     @apply fixed top-0 right-0 h-16 bg-card border-b border-border z-[200] transition-all duration-200;
+    flex-shrink: 0;
+    min-height: 64px;
   }
 
   .app-header.with-sidebar {
@@ -232,14 +236,42 @@
 
   .header-content {
     @apply flex items-center justify-between h-full px-6;
+    gap: 6;
+    flex-shrink: 0;
+    min-height: 64px;
+  }
+
+  .header-branding {
+    @apply flex items-center gap-3 flex-shrink-0;
+    min-width: 200px;
+  }
+
+  .brand-logo {
+    @apply flex items-center justify-center;
+  }
+
+  .brand-text {
+    @apply flex flex-col;
+  }
+
+  .brand-title {
+    @apply text-lg font-semibold text-foreground m-0;
+  }
+
+  .brand-subtitle {
+    @apply text-sm text-muted-foreground m-0;
   }
 
   .header-search {
     @apply flex-1 max-w-md mx-6;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .header-actions {
     @apply flex items-center gap-3;
+    flex-shrink: 0;
+    min-width: 150px;
   }
 
   /* Main Content Area */
