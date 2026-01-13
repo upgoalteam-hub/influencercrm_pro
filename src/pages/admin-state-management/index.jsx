@@ -56,6 +56,8 @@ export default function AdminStateManagement() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingBatch, setProcessingBatch] = useState(false);
+  const [selectedStates, setSelectedStates] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState('');
   const [batchResults, setBatchResults] = useState(null);
   const [changeHistoryModal, setChangeHistoryModal] = useState({ isOpen: false, recordId: null });
   const { userProfile } = useAuth();
@@ -142,37 +144,96 @@ export default function AdminStateManagement() {
       // Use bulk update with audit logging
       const result = await stateManagementService.bulkUpdateStateNames(validMappings, auditContext);
       
-      // Log batch audit operation
-      if (result.auditId) {
-        // Audit logging is handled in the database function
-        console.log('Audit logged with ID:', result.auditId);
+      if (result.success) {
+        toast(`Successfully updated ${result.total_updated || 0} records across ${validMappings.length} state mappings`, { type: 'success' });
+        
+        // Update UI immediately without page reload
+        const updatedStates = new Set();
+        validMappings.forEach(mapping => {
+          updatedStates.add(mapping.uncleanedState);
+        });
+        
+        // Remove mapped states from uncleaned states list
+        setUncleanedStates(prev => prev.filter(state => !updatedStates.has(state)));
+        
+        // Clear mappings for updated states
+        Object.keys(mappings).forEach(state => {
+          if (updatedStates.has(state)) {
+            updateMapping(state, '');
+          }
+        });
+        
+        // Clear selected states
+        setSelectedStates(new Set());
+        
+        // Update sidebar badge count
+        setTimeout(() => {
+          window.dispatchEvent(new Event('stateMappingsUpdated'));
+        }, 100);
+        
       } else {
-        // Fallback: log manually if not handled by database
-        try {
-          await logBatchStateMapping(validMappings, {
-            autoSelected: false,
-            confidenceThreshold: null,
-            transactionId: result.transactionId
-          });
-        } catch (auditError) {
-          console.warn('Audit logging failed:', auditError);
-        }
+        toast('Failed to update state names', { type: 'error' });
       }
-      
-      // Show success toast
-      toast.success(`Successfully updated ${result.totalUpdated || 0} records across ${validMappings.length} state mappings`);
-      
-      // Refresh the uncleaned states list
-      await fetchUncleanedStates();
-      
-      // Update sidebar badge count
-      setTimeout(() => {
-        window.dispatchEvent(new Event('stateMappingsUpdated'));
-      }, 100);
       
     } catch (err) {
       console.error('Save error:', err);
-      toast.error('Failed to update state names: ' + err.message);
+      toast('Failed to update state names: ' + err.message, { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStateSelection = (state) => {
+    const newSelected = new Set(selectedStates);
+    if (newSelected.has(state)) {
+      newSelected.delete(state);
+    } else {
+      newSelected.add(state);
+    }
+    setSelectedStates(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedStates.size === uncleanedStates.length) {
+      setSelectedStates(new Set());
+    } else {
+      setSelectedStates(new Set(uncleanedStates));
+    }
+  };
+
+  const handleBulkAction = async () => {
+    if (!bulkAction || selectedStates.size === 0) {
+      toast('Please select states and an action', { type: 'warning' });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      const validMappings = Array.from(selectedStates).map(state => ({
+        uncleanedState: state,
+        standardState: bulkAction,
+        confidence: 100,
+        autoSelected: false
+      }));
+
+      const result = await stateManagementService.bulkUpdateStateNames(validMappings);
+      
+      if (result.success) {
+        toast(`Successfully updated ${result.total_updated || 0} records`, { type: 'success' });
+        
+        // Update UI immediately
+        setUncleanedStates(prev => prev.filter(state => !selectedStates.has(state)));
+        setSelectedStates(new Set());
+        setBulkAction('');
+        
+        // Update sidebar badge
+        setTimeout(() => {
+          window.dispatchEvent(new Event('stateMappingsUpdated'));
+        }, 100);
+      }
+    } catch (err) {
+      toast('Bulk action failed: ' + err.message, { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -183,12 +244,10 @@ export default function AdminStateManagement() {
     toast.info('Selections reset to original state');
   };
 
-
   const handleAutoSelectMatches = async () => {
     try {
       setProcessingBatch(true);
       
-      // Filter out states with slashes to prevent data corruption
       const filteredStates = uncleanedStates.filter(state => !/\//.test(state));
       
       if (filteredStates.length < uncleanedStates.length) {
@@ -359,6 +418,44 @@ export default function AdminStateManagement() {
               </div>
             )}
 
+            {/* Bulk Action Controls */}
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedStates.size === uncleanedStates.length}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Select All ({selectedStates.size}/{uncleanedStates.length})
+                  </span>
+                </div>
+                
+                <select
+                  value={bulkAction}
+                  onChange={(e) => setBulkAction(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={selectedStates.size === 0}
+                >
+                  <option value="">Bulk assign to...</option>
+                  {STANDARD_INDIAN_STATES.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+                
+                <Button
+                  onClick={handleBulkAction}
+                  disabled={!bulkAction || selectedStates.size === 0 || saving}
+                  loading={saving}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {saving ? 'Updating...' : `Update ${selectedStates.size} selected`}
+                </Button>
+              </div>
+            </div>
+
             {/* State Mapping Table */}
             {uncleanedStates.length > 0 ? (
               <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -373,6 +470,14 @@ export default function AdminStateManagement() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            checked={selectedStates.size === uncleanedStates.length}
+                            onChange={handleSelectAll}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           #
                         </th>
@@ -403,8 +508,16 @@ export default function AdminStateManagement() {
                         return (
                           <tr 
                             key={uncleanedState} 
-                            className={`hover:bg-gray-50 ${hasPendingChange ? 'bg-yellow-50' : ''} ${hasSlash ? 'bg-orange-50' : ''}`}
+                            className={`hover:bg-gray-50 ${hasPendingChange ? 'bg-yellow-50' : ''} ${hasSlash ? 'bg-orange-50' : ''} ${selectedStates.has(uncleanedState) ? 'bg-blue-50' : ''}`}
                           >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedStates.has(uncleanedState)}
+                                onChange={() => handleStateSelection(uncleanedState)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {index + 1}
                             </td>

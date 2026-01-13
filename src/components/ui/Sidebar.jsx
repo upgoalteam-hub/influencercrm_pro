@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
-import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight, MapPin, FileSpreadsheet } from 'lucide-react';
 import { stateManagementService } from '../../services/stateManagementService';
+import SpreadsheetImportPanel from './SpreadsheetImportPanel';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [unmappedStatesCount, setUnmappedStatesCount] = useState(0);
+  const [showImportPanel, setShowImportPanel] = useState(false);
 
   // Keyboard navigation support
   const handleKeyDown = (e) => {
@@ -157,9 +159,44 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
               )}
             </button>
           ))}
+          
+          {/* Spreadsheet Import Section */}
+          <div className="sidebar-section-divider" />
+          
+          {/* Excel Import Button */}
+          <button
+            onClick={() => setShowImportPanel(true)}
+            className="sidebar-nav-item spreadsheet-import-btn"
+            title={isCollapsed ? "Import Excel/CSV" : ''}
+            aria-label="Import Excel or CSV file"
+          >
+            <FileSpreadsheet size={20} />
+            <span className="sidebar-nav-item-text">Import Excel</span>
+          </button>
+          
+          {/* Google Sheets Import Button */}
+          <button
+            onClick={() => setShowImportPanel(true)}
+            className="sidebar-nav-item spreadsheet-import-btn"
+            title={isCollapsed ? "Import Google Sheets" : ''}
+            aria-label="Import Google Sheets"
+          >
+            <FileSpreadsheet size={20} />
+            <span className="sidebar-nav-item-text">Import Google Sheet</span>
+          </button>
         </nav>
 
       </aside>
+
+      {/* Spreadsheet Import Panel */}
+      <SpreadsheetImportPanel
+        isOpen={showImportPanel}
+        onClose={() => setShowImportPanel(false)}
+        onDataImported={(data) => {
+          console.log('Spreadsheet data imported:', data);
+          // You can add additional handling here if needed
+        }}
+      />
     </>
   );
 };

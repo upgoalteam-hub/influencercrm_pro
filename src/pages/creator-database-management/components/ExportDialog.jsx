@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
-import { exportUtils } from '../../../utils/exportUtils';
+import { exportService } from '../../../services/exportService';
 import { exportLogService } from '../../../services/exportLogService';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [] }) => {
-  const [exportFormat, setExportFormat] = useState('excel');
+  const [exportFormat, setExportFormat] = useState('xlsx');
   const [exportScope, setExportScope] = useState('selected');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null);
   const { userProfile } = useAuth();
 
   const handleExport = async () => {
@@ -22,36 +24,62 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
         return;
       }
 
-      const formattedData = exportUtils?.formatCreatorData(creatorsToExport);
+      setIsExporting(true);
+      setExportProgress({ progress: 0, message: 'Preparing export...' });
+
+      // Prepare data for export
+      const headers = [
+        'id', 'sr_no', 'name', 'instagram_link', 'followers_tier', 
+        'state', 'city', 'whatsapp', 'email', 'gender', 'username', 'sheet_source'
+      ];
+      
       const timestamp = new Date()?.toISOString()?.slice(0, 10);
       const filename = `creators-export-${timestamp}`;
+      
+      const metadata = {
+        fileName: filename,
+        sheetName: 'Creators Database',
+        exportType: exportFormat,
+        exportScope: exportScope,
+        exportedAt: new Date().toISOString(),
+        recordCount: creatorsToExport.length
+      };
 
-      // Perform the export
-      switch (exportFormat) {
-        case 'excel':
-          exportUtils?.exportToExcel(formattedData, filename);
-          break;
-        case 'csv':
-          exportUtils?.exportToCSV(formattedData, filename);
-          break;
-        default:
-          exportUtils?.exportToExcel(formattedData, filename);
+      // Perform the export using the enhanced export service
+      const result = await exportService.exportWithProgress(
+        creatorsToExport,
+        headers,
+        exportFormat,
+        {
+          filename: `${filename}.${exportFormat}`,
+          title: 'Creators Database Export',
+          sheetName: 'Creators',
+          includeMetadata: true
+        },
+        (progress) => setExportProgress(progress)
+      );
+
+      if (result.success) {
+        // Log the export activity
+        const username = userProfile?.name || userProfile?.email || 'Unknown User';
+        await exportLogService?.logExport({
+          username,
+          exportType: exportFormat,
+          exportScope,
+          recordCount: creatorsToExport?.length,
+          fileName: result.filename,
+          additionalDetails: `Creator Database Export - ${exportScope === 'selected' ? 'Selected' : 'All'} Records - ${result.rowCount} rows`
+        });
+
+        setExportProgress(null);
+        onClose();
+      } else {
+        throw new Error(result.error);
       }
 
-      // Log the export activity
-      const username = userProfile?.name || userProfile?.email || 'Unknown User';
-      await exportLogService?.logExport({
-        username,
-        exportType: exportFormat,
-        exportScope,
-        recordCount: creatorsToExport?.length,
-        fileName: `${filename}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
-        additionalDetails: `Creator Database Export - ${exportScope === 'selected' ? 'Selected' : 'All'} Records`
-      });
-
-      onClose();
     } catch (error) {
       console.error('Export failed:', error);
+      setExportProgress(null);
       
       // Log the export failure
       try {
@@ -69,6 +97,8 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
       }
       
       alert(`Failed to export creators: ${error?.message}`);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -104,8 +134,8 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
             <div className="space-y-2">
               <Checkbox
                 label="Excel (.xlsx)"
-                checked={exportFormat === 'excel'}
-                onChange={() => setExportFormat('excel')}
+                checked={exportFormat === 'xlsx'}
+                onChange={() => setExportFormat('xlsx')}
               />
               <Checkbox
                 label="CSV (.csv)"
@@ -113,7 +143,12 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
                 onChange={() => setExportFormat('csv')}
               />
               <Checkbox
-                label="PDF Report"
+                label="JSON (.json)"
+                checked={exportFormat === 'json'}
+                onChange={() => setExportFormat('json')}
+              />
+              <Checkbox
+                label="PDF Report (.html)"
                 checked={exportFormat === 'pdf'}
                 onChange={() => setExportFormat('pdf')}
               />
@@ -147,22 +182,41 @@ const ExportDialog = ({ isOpen, onClose, selectedCount, totalCount, creators = [
               </p>
             </div>
           </div>
+
+          {/* Export Progress Indicator */}
+          {exportProgress && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center space-x-2 text-sm text-blue-800 mb-2">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span>{exportProgress.message}</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${exportProgress.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-border px-6 py-4 flex items-center justify-end gap-3">
           <Button
             variant="outline"
             onClick={onClose}
+            disabled={isExporting}
           >
             Cancel
           </Button>
           <Button
             variant="default"
-            iconName="Download"
+            iconName={isExporting ? "Loader2" : "Download"}
             iconPosition="left"
             onClick={handleExport}
+            disabled={isExporting}
+            className={isExporting ? "opacity-75 cursor-not-allowed" : ""}
           >
-            Export
+            {isExporting ? "Exporting..." : "Export"}
           </Button>
         </div>
       </div>
