@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
-import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight, MapPin, FileSpreadsheet } from 'lucide-react';
+import { Home, Users, FolderKanban, DollarSign, Database, Link as LinkIcon, Settings, ChevronLeft, ChevronRight, MapPin, FileSpreadsheet, Building } from 'lucide-react';
 import { stateManagementService } from '../../services/stateManagementService';
+import { cityManagementService } from '../../services/cityManagementService';
 import SpreadsheetImportPanel from './SpreadsheetImportPanel';
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
@@ -10,6 +11,7 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [unmappedStatesCount, setUnmappedStatesCount] = useState(0);
+  const [unmappedCitiesCount, setUnmappedCitiesCount] = useState(0);
   const [showImportPanel, setShowImportPanel] = useState(false);
 
   // Keyboard navigation support
@@ -34,33 +36,42 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
     };
   }, [isMobileOpen]);
 
-  // Fetch unmapped states count
+  // Fetch unmapped states and cities count
   useEffect(() => {
-    const fetchUnmappedStatesCount = async () => {
+    const fetchUnmappedCounts = async () => {
       try {
         const uncleanedStates = await stateManagementService.getUncleanedStates();
+        const uncleanedCities = await cityManagementService.getUncleanedCities();
         setUnmappedStatesCount(uncleanedStates.length);
+        setUnmappedCitiesCount(uncleanedCities.length);
       } catch (error) {
-        console.error('Error fetching unmapped states count:', error);
+        console.error('Error fetching unmapped counts:', error);
         setUnmappedStatesCount(0);
+        setUnmappedCitiesCount(0);
       }
     };
 
-    fetchUnmappedStatesCount();
+    fetchUnmappedCounts();
     
     // Refresh count every 30 seconds
-    const interval = setInterval(fetchUnmappedStatesCount, 30000);
+    const interval = setInterval(fetchUnmappedCounts, 30000);
     
-    // Listen for state mappings update events
+    // Listen for update events
     const handleStateMappingsUpdate = () => {
-      fetchUnmappedStatesCount();
+      fetchUnmappedCounts();
+    };
+    
+    const handleCityMappingsUpdate = () => {
+      fetchUnmappedCounts();
     };
     
     window.addEventListener('stateMappingsUpdated', handleStateMappingsUpdate);
+    window.addEventListener('cityMappingsUpdated', handleCityMappingsUpdate);
     
     return () => {
       clearInterval(interval);
       window.removeEventListener('stateMappingsUpdated', handleStateMappingsUpdate);
+      window.removeEventListener('cityMappingsUpdated', handleCityMappingsUpdate);
     };
   }, []);
 
@@ -73,6 +84,7 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
     { name: 'Bulk Instagram Processor', href: '/bulk-instagram-processor', icon: LinkIcon },
     { name: 'System Settings', href: '/system-settings-user-management', icon: Settings },
     { name: 'State Management', href: '/admin-state-management', icon: MapPin },
+    { name: 'City Management', href: '/admin-city-management', icon: Building },
   ];
 
   const handleNavigation = (path) => {
@@ -155,6 +167,26 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse }) => {
                   }}
                 >
                   {unmappedStatesCount > 99 ? '99+' : unmappedStatesCount}
+                </span>
+              )}
+              {item?.href === '/admin-city-management' && unmappedCitiesCount > 0 && (
+                <span 
+                  className="sidebar-nav-item-badge"
+                  style={{
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    minWidth: '20px',
+                    height: '20px',
+                    borderRadius: '9999px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    padding: '0 6px'
+                  }}
+                >
+                  {unmappedCitiesCount > 99 ? '99+' : unmappedCitiesCount}
                 </span>
               )}
             </button>

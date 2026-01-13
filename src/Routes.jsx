@@ -15,6 +15,7 @@ import BulkInstagramProcessor from './pages/bulk-instagram-processor';
 import SystemSettingsUserManagement from './pages/system-settings-user-management';
 import UserProfile from './pages/user-profile';
 import AdminStateManagement from './pages/admin-state-management';
+import AdminCityManagement from './pages/admin-city-management';
 
 const Routes = () => {
   return (
@@ -43,6 +44,7 @@ const Routes = () => {
           <Route path="/bulk-instagram-processor" element={<RequireAuth><BulkInstagramProcessor /></RequireAuth>} />
           <Route path="/system-settings-user-management" element={<RequireAuth><SystemSettingsUserManagement /></RequireAuth>} />
           <Route path="/admin-state-management" element={<RequireAuth><AdminStateManagement /></RequireAuth>} />
+          <Route path="/admin-city-management" element={<RequireAuth><AdminCityManagement /></RequireAuth>} />
           <Route path="/user-profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
           <Route path="/logout" element={<LogoutRoute />} />
           <Route path="*" element={<NotFound />} />
