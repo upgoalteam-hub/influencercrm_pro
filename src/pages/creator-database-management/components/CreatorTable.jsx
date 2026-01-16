@@ -127,19 +127,19 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
       <div className="overflow-x-auto table-container">
         <table className="w-full" style={{ tableLayout: 'auto', minWidth: '1400px' }}>
           <colgroup>
-            <col style={{ width: COLUMN_WIDTHS.checkbox }} /> {/* Checkbox */}
-            <col style={{ width: COLUMN_WIDTHS.sr_no }} /> {/* sr_no */}
-            <col style={{ width: COLUMN_WIDTHS.name }} /> {/* name */}
-            <col style={{ width: '250px', minWidth: '200px' }} /> {/* instagram_link */}
-            <col style={{ width: '120px', minWidth: '100px' }} /> {/* followers_tier */}
-            <col style={{ width: '150px', minWidth: '120px' }} /> {/* state */}
-            <col style={{ width: '150px', minWidth: '120px' }} /> {/* city */}
-            <col style={{ width: '150px', minWidth: '120px' }} /> {/* whatsapp */}
-            <col style={{ width: '200px', minWidth: '150px' }} /> {/* email */}
-            <col style={{ width: '100px', minWidth: '80px' }} /> {/* gender */}
-            <col style={{ width: '150px', minWidth: '120px' }} /> {/* username */}
-            <col style={{ width: '150px', minWidth: '120px' }} /> {/* sheet_source */}
-            <col style={{ width: COLUMN_WIDTHS.actions }} /> {/* Actions */}
+            <col style={{ width: COLUMN_WIDTHS.checkbox }} />
+            <col style={{ width: COLUMN_WIDTHS.sr_no }} />
+            <col style={{ width: COLUMN_WIDTHS.name }} />
+            <col style={{ width: '250px', minWidth: '200px' }} />
+            <col style={{ width: '120px', minWidth: '100px' }} />
+            <col style={{ width: '150px', minWidth: '120px' }} />
+            <col style={{ width: '150px', minWidth: '120px' }} />
+            <col style={{ width: '150px', minWidth: '120px' }} />
+            <col style={{ width: '200px', minWidth: '150px' }} />
+            <col style={{ width: '100px', minWidth: '80px' }} />
+            <col style={{ width: '150px', minWidth: '120px' }} />
+            <col style={{ width: '150px', minWidth: '120px' }} />
+            <col style={{ width: COLUMN_WIDTHS.actions }} />
           </colgroup>
           <thead className="bg-muted/50 border-b border-border">
             <tr>
@@ -152,20 +152,159 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
                 />
               </th>
               <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm" style={{ width: COLUMN_WIDTHS.sr_no }}>
-                <SortableHeader column="sr_no" label="sr_no" />
+                <button
+                  onClick={() => handleSort('sr_no')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  sr_no
+                  {sortConfig?.column === 'sr_no' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
               </th>
               <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm" style={{ width: COLUMN_WIDTHS.name }}>
-                <SortableHeader column="name" label="name" />
+                <button
+                  onClick={() => handleSort('name')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  name
+                  {sortConfig?.column === 'name' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
               </th>
-              <SortableHeader column="instagram_link" label="instagram_link" />
-              <SortableHeader column="followers_tier" label="followers_tier" />
-              <SortableHeader column="state" label="state" />
-              <SortableHeader column="city" label="city" />
-              <SortableHeader column="whatsapp" label="whatsapp" />
-              <SortableHeader column="email" label="email" />
-              <SortableHeader column="gender" label="gender" />
-              <SortableHeader column="username" label="username" />
-              <SortableHeader column="sheet_source" label="sheet_source" />
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('instagram_link')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  instagram_link
+                  {sortConfig?.column === 'instagram_link' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('followers_tier')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  followers_tier
+                  {sortConfig?.column === 'followers_tier' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('state')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  state
+                  {sortConfig?.column === 'state' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('city')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  city
+                  {sortConfig?.column === 'city' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('whatsapp')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  whatsapp
+                  {sortConfig?.column === 'whatsapp' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('email')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  email
+                  {sortConfig?.column === 'email' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('gender')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  gender
+                  {sortConfig?.column === 'gender' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('username')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  username
+                  {sortConfig?.column === 'username' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+                <button
+                  onClick={() => handleSort('sheet_source')}
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  sheet_source
+                  {sortConfig?.column === 'sheet_source' && (
+                    <Icon
+                      name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                      size={14}
+                    />
+                  )}
+                </button>
+              </th>
               <th className="px-4 py-3 bg-white border-l border-border/50 shadow-sm">
                 <span className="text-xs font-medium text-muted-foreground">Actions</span>
               </th>
@@ -190,19 +329,19 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
     <div className="overflow-x-auto table-container">
       <table className="w-full" style={{ tableLayout: 'auto', minWidth: '1400px' }}>
         <colgroup>
-          <col style={{ width: COLUMN_WIDTHS.checkbox }} /> {/* Checkbox */}
-          <col style={{ width: COLUMN_WIDTHS.sr_no }} /> {/* sr_no */}
-          <col style={{ width: COLUMN_WIDTHS.name }} /> {/* name */}
-          <col style={{ width: '250px', minWidth: '200px' }} /> {/* instagram_link */}
-          <col style={{ width: '120px', minWidth: '100px' }} /> {/* followers_tier */}
-          <col style={{ width: '150px', minWidth: '120px' }} /> {/* state */}
-          <col style={{ width: '150px', minWidth: '120px' }} /> {/* city */}
-          <col style={{ width: '150px', minWidth: '120px' }} /> {/* whatsapp */}
-          <col style={{ width: '200px', minWidth: '150px' }} /> {/* email */}
-          <col style={{ width: '100px', minWidth: '80px' }} /> {/* gender */}
-          <col style={{ width: '150px', minWidth: '120px' }} /> {/* username */}
-          <col style={{ width: '150px', minWidth: '120px' }} /> {/* sheet_source */}
-          <col style={{ width: COLUMN_WIDTHS.actions }} /> {/* Actions */}
+          <col style={{ width: COLUMN_WIDTHS.checkbox }} />
+          <col style={{ width: COLUMN_WIDTHS.sr_no }} />
+          <col style={{ width: COLUMN_WIDTHS.name }} />
+          <col style={{ width: '250px', minWidth: '200px' }} />
+          <col style={{ width: '120px', minWidth: '100px' }} />
+          <col style={{ width: '150px', minWidth: '120px' }} />
+          <col style={{ width: '150px', minWidth: '120px' }} />
+          <col style={{ width: '150px', minWidth: '120px' }} />
+          <col style={{ width: '200px', minWidth: '150px' }} />
+          <col style={{ width: '100px', minWidth: '80px' }} />
+          <col style={{ width: '150px', minWidth: '120px' }} />
+          <col style={{ width: '150px', minWidth: '120px' }} />
+          <col style={{ width: COLUMN_WIDTHS.actions }} />
         </colgroup>
         <thead className="bg-muted/50 border-b border-border">
           <tr>
@@ -216,20 +355,159 @@ const CreatorTable = ({ creators, selectedCreators, onSelectionChange, onSort, s
               />
             </th>
             <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm" style={{ width: COLUMN_WIDTHS.sr_no }}>
-              <SortableHeader column="sr_no" label="sr_no" />
+              <button
+                onClick={() => handleSort('sr_no')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                sr_no
+                {sortConfig?.column === 'sr_no' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
             </th>
             <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm" style={{ width: COLUMN_WIDTHS.name }}>
-              <SortableHeader column="name" label="name" />
+              <button
+                onClick={() => handleSort('name')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                name
+                {sortConfig?.column === 'name' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
             </th>
-            <SortableHeader column="instagram_link" label="instagram_link" />
-            <SortableHeader column="followers_tier" label="followers_tier" />
-            <SortableHeader column="state" label="state" />
-            <SortableHeader column="city" label="city" />
-            <SortableHeader column="whatsapp" label="whatsapp" />
-            <SortableHeader column="email" label="email" />
-            <SortableHeader column="gender" label="gender" />
-            <SortableHeader column="username" label="username" />
-            <SortableHeader column="sheet_source" label="sheet_source" />
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('instagram_link')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                instagram_link
+                {sortConfig?.column === 'instagram_link' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('followers_tier')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                followers_tier
+                {sortConfig?.column === 'followers_tier' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('state')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                state
+                {sortConfig?.column === 'state' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('city')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                city
+                {sortConfig?.column === 'city' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('whatsapp')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                whatsapp
+                {sortConfig?.column === 'whatsapp' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('email')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                email
+                {sortConfig?.column === 'email' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('gender')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                gender
+                {sortConfig?.column === 'gender' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('username')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                username
+                {sortConfig?.column === 'username' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
+            <th className="px-4 py-3 bg-white border-r border-border/50 shadow-sm">
+              <button
+                onClick={() => handleSort('sheet_source')}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                sheet_source
+                {sortConfig?.column === 'sheet_source' && (
+                  <Icon
+                    name={sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'}
+                    size={14}
+                  />
+                )}
+              </button>
+            </th>
             <th className="px-4 py-3 bg-white border-l border-border/50 shadow-sm">
               <span className="text-xs font-medium text-muted-foreground">Actions</span>
             </th>
