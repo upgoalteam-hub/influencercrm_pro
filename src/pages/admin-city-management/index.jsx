@@ -4,8 +4,12 @@ import Sidebar from '../../components/ui/Sidebar';
 import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import { cityManagementService } from '../../services/cityManagementService';
+import { useCityMapping } from '../../hooks/useCityMapping';
+import { useAudit } from '../../hooks/useAudit';
+import { enhancedFuzzyMatch, batchProcessStates } from '../../utils/fuzzyMatching';
+import { ChangeHistoryIcon, ChangeHistoryModal } from '../../components/audit/AuditLogComponents';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Info, Clock } from 'lucide-react';
 import { useToast } from '../../components/ui/ToastContainer';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 const STANDARD_INDIAN_CITIES = [
   'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 
@@ -24,16 +28,38 @@ function AdminCityManagement() {
   
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [uncleanedCities, setUncleanedCities] = useState([]);
-  const [cityMappings, setCityMappings] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [processingBatch, setProcessingBatch] = useState(false);
   const [selectedCities, setSelectedCities] = useState(new Set());
   const [bulkAction, setBulkAction] = useState('');
-  const [stats, setStats] = useState({
-    total: 0,
-    mapped: 0,
-    unmapped: 0
-  });
+  const [batchResults, setBatchResults] = useState(null);
+  const [changeHistoryModal, setChangeHistoryModal] = useState({ isOpen: false, recordId: null });
+  
+  // Use custom hook for city management
+  const {
+    mappings,
+    confidenceScores,
+    pendingChanges,
+    isDirty,
+    statistics,
+    validation,
+    initializeMappings,
+    updateMapping,
+    batchUpdateMappings,
+    autoSelectHighConfidence,
+    clearAllMappings,
+    resetMappings,
+    getValidMappings
+  } = useCityMapping();
+
+  // Use audit hook for audit logging
+  const {
+    logBatchCityMapping,
+    getAuditHistory,
+    loading: auditLoading,
+    error: auditError
+  } = useAudit();
 
   useEffect(() => {
     fetchUncleanedCities();
@@ -45,36 +71,28 @@ function AdminCityManagement() {
       const cities = await cityManagementService.getUncleanedCities();
       setUncleanedCities(cities);
       
-      const initialMappings = {};
-      cities.forEach(city => {
-        initialMappings[city] = '';
-      });
-      setCityMappings(initialMappings);
-      
-      setStats({
-        total: cities.length,
-        mapped: 0,
-        unmapped: cities.length
-      });
-    } catch (error) {
-      console.error('Error fetching cities:', error);
-      toast('Failed to fetch cities', { type: 'error' });
+      // Initialize mappings using custom hook
+      initializeMappings(cities);
+    } catch (err) {
+      toast.error('Failed to fetch uncleaned cities: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCityMappingChange = (uncleanedCity, standardCity) => {
-    const newMappings = { ...cityMappings };
-    newMappings[uncleanedCity] = standardCity;
-    setCityMappings(newMappings);
+    // Check if uncleaned city contains a slash - if so, disable auto-mapping
+    const hasSlash = /\//.test(uncleanedCity);
+    if (hasSlash && standardCity) {
+      // Allow manual mapping but show warning
+      console.warn(`City "${uncleanedCity}" contains a slash - manual mapping recommended`);
+    }
     
-    const mappedCount = Object.values(newMappings).filter(city => city !== '').length;
-    setStats({
-      total: uncleanedCities.length,
-      mapped: mappedCount,
-      unmapped: uncleanedCities.length - mappedCount
-    });
+    // Calculate confidence for the selected mapping
+    const confidence = standardCity ? 
+      enhancedFuzzyMatch(uncleanedCity, STANDARD_INDIAN_CITIES).confidence : 0;
+    
+    updateMapping(uncleanedCity, standardCity, confidence);
   };
 
   const handleCitySelection = (city) => {
@@ -99,24 +117,26 @@ function AdminCityManagement() {
     try {
       setSaving(true);
       
-      const validMappings = Object.entries(cityMappings)
-        .filter(([uncleanedCity, standardCity]) => standardCity !== '')
-        .map(([uncleanedCity, standardCity]) => ({
-          uncleanedCity,
-          standardCity,
-          confidence: 100,
-          autoSelected: false
-        }));
-
-      if (validMappings.length === 0) {
-        toast('No valid city mappings to save', { type: 'warning' });
+      // Validate mappings
+      const { isValid, errors, validMappings } = validation;
+      
+      if (!isValid) {
+        toast.warning(errors.join(', '));
         return;
       }
 
-      const result = await cityManagementService.bulkUpdateCityNames(validMappings);
+      // Create audit context for this operation
+      const auditContext = {
+        userId: userProfile?.id || 'anonymous',
+        userEmail: userProfile?.email || 'anonymous@example.com',
+        sessionId: sessionStorage.getItem('audit_session_id') || 'session_' + Date.now()
+      };
+
+      // Use bulk update with audit logging
+      const result = await cityManagementService.bulkUpdateCityNames(validMappings, auditContext);
       
       if (result.success) {
-        toast(`Successfully updated ${result.total_updated} city mappings`, { type: 'success' });
+        toast(`Successfully updated ${result.total_updated || 0} records across ${validMappings.length} city mappings`, { type: 'success' });
         
         // Update UI immediately without page reload
         const updatedCities = new Set();
@@ -128,11 +148,11 @@ function AdminCityManagement() {
         setUncleanedCities(prev => prev.filter(city => !updatedCities.has(city)));
         
         // Clear mappings for updated cities
-        const newMappings = { ...cityMappings };
-        updatedCities.forEach(city => {
-          delete newMappings[city];
+        Object.keys(mappings).forEach(city => {
+          if (updatedCities.has(city)) {
+            updateMapping(city, '');
+          }
         });
-        setCityMappings(newMappings);
         
         // Clear selected cities
         setSelectedCities(new Set());
@@ -143,11 +163,12 @@ function AdminCityManagement() {
         }, 100);
         
       } else {
-        toast('Failed to update city mappings', { type: 'error' });
+        toast('Failed to update city names', { type: 'error' });
       }
-    } catch (error) {
-      console.error('Error saving city mappings:', error);
-      toast('Error saving city mappings', { type: 'error' });
+      
+    } catch (err) {
+      console.error('Save error:', err);
+      toast('Failed to update city names: ' + err.message, { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -191,63 +212,77 @@ function AdminCityManagement() {
     }
   };
 
-  const handleAutoSelect = () => {
-    console.log('🔄 Auto-selecting city matches...');
-    const newMappings = { ...cityMappings };
-    let matchedCount = 0;
-    
-    uncleanedCities.forEach(uncleanedCity => {
-      const lowerUncleaned = uncleanedCity.toLowerCase().trim();
+  const handleAutoSelectMatches = async () => {
+    try {
+      setProcessingBatch(true);
       
-      // Try exact match first
-      const exactMatch = STANDARD_INDIAN_CITIES.find(standardCity => 
-        standardCity.toLowerCase() === lowerUncleaned
-      );
+      const filteredCities = uncleanedCities.filter(city => !/\//.test(city));
       
-      if (exactMatch) {
-        newMappings[uncleanedCity] = exactMatch;
-        matchedCount++;
-        console.log('✅ Exact match found:', uncleanedCity, '->', exactMatch);
-        return;
+      if (filteredCities.length < uncleanedCities.length) {
+        const excludedCount = uncleanedCities.length - filteredCities.length;
+        toast.warning(`${excludedCount} cities with slashes excluded from auto-mapping`);
       }
       
-      // Try partial match
-      const partialMatch = STANDARD_INDIAN_CITIES.find(standardCity => 
-        standardCity.toLowerCase().includes(lowerUncleaned) || 
-        lowerUncleaned.includes(standardCity.toLowerCase())
-      );
+      // Process filtered cities with fuzzy matching
+      const batchResult = batchProcessStates(filteredCities, STANDARD_INDIAN_CITIES, {
+        confidenceThreshold: 90,
+        autoSelectHighConfidence: true,
+        batchSize: 100
+      });
       
-      if (partialMatch) {
-        newMappings[uncleanedCity] = partialMatch;
-        matchedCount++;
-        console.log('🎯 Partial match found:', uncleanedCity, '->', partialMatch);
+      // Update mappings with high confidence matches
+      const highConfidenceUpdates = batchResult.results
+        .filter(result => result.confidence >= 90)
+        .map(result => ({
+          uncleanedCity: result.uncleanedState,
+          standardCity: result.match,
+          confidence: result.confidence,
+          autoSelected: true
+        }));
+      
+      batchUpdateMappings(highConfidenceUpdates);
+      
+      // Log batch operation for audit
+      try {
+        await logBatchCityMapping(highConfidenceUpdates, {
+          autoSelected: true,
+          confidenceThreshold: 90,
+          operation: 'auto_select_matches'
+        });
+      } catch (auditError) {
+        console.warn('Audit logging for auto-select failed:', auditError);
       }
-    });
-    
-    setCityMappings(newMappings);
-    const mappedCount = Object.values(newMappings).filter(city => city !== '').length;
-    setStats({
-      total: uncleanedCities.length,
-      mapped: mappedCount,
-      unmapped: uncleanedCities.length - mappedCount
-    });
-    
-    toast(`Auto-selected ${matchedCount} city matches`, { type: 'success' });
+      
+      setBatchResults(batchResult);
+      
+      toast.success(`Auto-selected ${highConfidenceUpdates.length} high-confidence matches (>90%)`);
+      
+    } catch (err) {
+      console.error('Auto-select error:', err);
+      toast.error('Failed to auto-select matches: ' + err.message);
+    } finally {
+      setProcessingBatch(false);
+    }
+  };
+
+  const handleViewChangeHistory = async (recordId) => {
+    try {
+      setChangeHistoryModal({ isOpen: true, recordId });
+    } catch (err) {
+      console.error('Error viewing change history:', err);
+      toast.error('Failed to load change history');
+    }
   };
 
   const handleClearAll = () => {
-    const clearedMappings = {};
-    uncleanedCities.forEach(city => {
-      clearedMappings[city] = '';
-    });
-    setCityMappings(clearedMappings);
-    setStats({
-      total: uncleanedCities.length,
-      mapped: 0,
-      unmapped: uncleanedCities.length
-    });
-    
-    toast('Cleared all mappings', { type: 'info' });
+    clearAllMappings();
+    setBatchResults(null);
+    toast.info('All selections cleared');
+  };
+
+  const handleReset = () => {
+    resetMappings();
+    toast.info('Selections reset to original state');
   };
 
   if (loading) {
@@ -290,28 +325,36 @@ function AdminCityManagement() {
           <div className="max-w-7xl mx-auto flex flex-wrap gap-3 items-center justify-between">
             <div className="flex flex-wrap gap-3">
               <Button
-                onClick={handleAutoSelect}
+                onClick={handleAutoSelectMatches}
                 variant="outline"
-                disabled={loading || uncleanedCities.length === 0}
+                disabled={processingBatch || uncleanedCities.length === 0}
                 className="shadow-sm bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
               >
-                {loading ? 'Processing...' : 'Auto-Select Matches'}
+                {processingBatch ? 'Processing...' : 'Auto-Select Matches'}
               </Button>
               <Button
                 onClick={handleClearAll}
                 variant="outline"
-                disabled={loading || uncleanedCities.length === 0}
+                disabled={uncleanedCities.length === 0}
                 className="shadow-sm bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
               >
                 Clear All
               </Button>
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                disabled={uncleanedCities.length === 0 || !isDirty}
+                className="border-gray-300 hover:bg-gray-50 shadow-sm"
+              >
+                Reset
+              </Button>
             </div>
             <Button
               onClick={handleSave}
-              disabled={saving || stats.mapped === 0}
+              disabled={saving || !isDirty || uncleanedCities.length === 0}
               className="bg-blue-600 hover:bg-blue-700 shadow-sm"
             >
-              {saving ? 'Saving...' : `Save Changes (${stats.mapped})`}
+              {saving ? 'Saving...' : `Save Changes (${pendingChanges.size})`}
             </Button>
           </div>
         </div>
@@ -323,21 +366,39 @@ function AdminCityManagement() {
             <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-sm font-medium text-gray-500">Total Cities</h3>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-2xl font-bold text-gray-900">{statistics.totalCities}</p>
               </div>
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-sm font-medium text-gray-500">Mapped Cities</h3>
-                <p className="text-2xl font-bold text-green-600">{stats.mapped}</p>
+                <p className="text-2xl font-bold text-green-600">{statistics.mappedCities}</p>
               </div>
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-sm font-medium text-gray-500">Pending Changes</h3>
-                <p className="text-2xl font-bold text-orange-600">{stats.mapped}</p>
+                <p className="text-2xl font-bold text-orange-600">{statistics.pendingChanges}</p>
               </div>
               <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="text-sm font-medium text-gray-500">Selected Cities</h3>
-                <p className="text-2xl font-bold text-blue-600">{selectedCities.size}</p>
+                <h3 className="text-sm font-medium text-gray-500">High Confidence</h3>
+                <p className="text-2xl font-bold text-blue-600">{statistics.highConfidenceMatches}</p>
               </div>
             </div>
+
+            {/* Batch Processing Results */}
+            {batchResults && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">Batch Processing Results</h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>Total Processed: {batchResults.totalProcessed}</p>
+                      <p>High Confidence Matches (&ge;90%): {batchResults.highConfidenceMatches}</p>
+                      <p>Medium Confidence Matches (70-89%): {batchResults.mediumConfidenceMatches}</p>
+                      <p>Low Confidence Matches (&lt;70%): {batchResults.lowConfidenceMatches}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bulk Action Controls */}
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -405,63 +466,122 @@ function AdminCityManagement() {
                         Uncleaned City Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Confidence Score
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Standard City Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        History
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {uncleanedCities.map((uncleanedCity, index) => (
-                      <tr 
-                        key={uncleanedCity} 
-                        className={`hover:bg-gray-50 ${selectedCities.has(uncleanedCity) ? 'bg-blue-50' : ''}`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={selectedCities.has(uncleanedCity)}
-                            onChange={() => handleCitySelection(uncleanedCity)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {index + 1}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 bg-red-50 p-2 rounded">
-                            {uncleanedCity}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <select
-                            value={cityMappings[uncleanedCity] || ''}
-                            onChange={(e) => handleCityMappingChange(uncleanedCity, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Select standard city...</option>
-                            {STANDARD_INDIAN_CITIES.map((city) => (
-                              <option key={city} value={city}>
-                                {city}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {cityMappings[uncleanedCity] ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Mapped
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              Unmapped
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {uncleanedCities.map((uncleanedCity, index) => {
+                      const confidence = confidenceScores[uncleanedCity] || 0;
+                      const isSelected = mappings[uncleanedCity] || '';
+                      const hasPendingChange = pendingChanges.has(uncleanedCity);
+                      const hasSlash = /\//.test(uncleanedCity);
+                      
+                      return (
+                        <tr 
+                          key={uncleanedCity} 
+                          className={`hover:bg-gray-50 ${hasPendingChange ? 'bg-yellow-50' : ''} ${hasSlash ? 'bg-orange-50' : ''} ${selectedCities.has(uncleanedCity) ? 'bg-blue-50' : ''}`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedCities.has(uncleanedCity)}
+                              onChange={() => handleCitySelection(uncleanedCity)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {index + 1}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {uncleanedCity}
+                            </div>
+                            {hasSlash && (
+                              <div className="text-xs text-orange-600 mt-1">
+                                <AlertCircle className="inline w-3 h-3 mr-1" />
+                                Contains slash - manual mapping recommended
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {confidence > 0 ? (
+                              <div className="flex items-center">
+                                <div className="flex-1">
+                                  <div className="flex items-center">
+                                    <span className={`text-sm font-medium ${
+                                      confidence >= 90 ? 'text-green-600' : 
+                                      confidence >= 70 ? 'text-yellow-600' : 'text-red-600'
+                                    }`}>
+                                      {confidence}%
+                                    </span>
+                                    {confidence >= 90 && (
+                                      <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
+                                    )}
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                    <div 
+                                      className={`h-1.5 rounded-full ${
+                                        confidence >= 90 ? 'bg-green-500' : 
+                                        confidence >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                                      }`}
+                                      style={{ width: `${confidence}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <select
+                              value={isSelected}
+                              onChange={(e) => handleCityMappingChange(uncleanedCity, e.target.value)}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            >
+                              <option value="">Select a standard city...</option>
+                              {STANDARD_INDIAN_CITIES.map(standardCity => (
+                                <option key={standardCity} value={standardCity}>
+                                  {standardCity}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {hasPendingChange ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Pending
+                              </span>
+                            ) : isSelected ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Mapped
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Unmapped
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <ChangeHistoryIcon
+                              recordId={uncleanedCity}
+                              tableName="creators"
+                              onClick={() => handleViewChangeHistory(uncleanedCity)}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -469,6 +589,15 @@ function AdminCityManagement() {
           </div>
         </main>
       </div>
+      
+      {/* Change History Modal */}
+      <ChangeHistoryModal
+        isOpen={changeHistoryModal.isOpen}
+        onClose={() => setChangeHistoryModal({ isOpen: false, recordId: null })}
+        recordId={changeHistoryModal.recordId}
+        tableName="creators"
+        title={`Change History for "${changeHistoryModal.recordId}"`}
+      />
     </div>
   );
 }
