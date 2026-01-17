@@ -9,12 +9,6 @@ const QuickActionToolbar = () => {
 
   const quickActions = [
     {
-      label: 'Add Creator',
-      icon: 'UserPlus',
-      action: () => navigate('/creator-database-management'),
-      visible: ['/creator-database-management', '/creator-profile-details']
-    },
-    {
       label: 'Create Campaign',
       icon: 'Plus',
       action: () => navigate('/campaign-management-center'),

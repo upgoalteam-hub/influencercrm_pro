@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
 import { creatorService } from '../../../services/creatorService';
+import { useFollowersTiers } from '../../../hooks/useFollowersTiers';
 
 const EditCreatorModal = ({ isOpen, onClose, creator, onCreatorUpdated }) => {
   const [formData, setFormData] = useState({
@@ -19,6 +21,17 @@ const EditCreatorModal = ({ isOpen, onClose, creator, onCreatorUpdated }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Fetch followers tiers dynamically
+  const { followersTiers, loading: followersLoading } = useFollowersTiers();
+  
+  // Static gender options
+  const genderOptions = [
+    { value: 'Female', label: 'Female' },
+    { value: 'Male', label: 'Male' },
+    { value: 'Other', label: 'Other' },
+    { value: 'Prefer not to say', label: 'Prefer not to say' }
+  ];
 
   // Initialize form data when creator changes
   useEffect(() => {
@@ -168,19 +181,25 @@ const EditCreatorModal = ({ isOpen, onClose, creator, onCreatorUpdated }) => {
           />
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
+            <Select
               label="Followers Tier"
               value={formData?.followers_tier}
-              onChange={(e) => handleChange('followers_tier', e?.target?.value)}
-              placeholder="e.g., 10K, 50K, 100K+"
-              disabled={loading}
+              onChange={(value) => handleChange('followers_tier', value)}
+              options={followersTiers}
+              placeholder="Select followers tier"
+              disabled={loading || followersLoading}
+              loading={followersLoading}
+              searchable={true}
+              clearable={true}
             />
-            <Input
+            <Select
               label="Gender"
               value={formData?.gender}
-              onChange={(e) => handleChange('gender', e?.target?.value)}
-              placeholder="Male/Female/Other"
+              onChange={(value) => handleChange('gender', value)}
+              options={genderOptions}
+              placeholder="Select gender"
               disabled={loading}
+              clearable={true}
             />
           </div>
 
