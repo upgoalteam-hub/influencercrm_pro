@@ -117,17 +117,17 @@ const FilterSection = React.memo(({
 
 const FilterSidebar = ({ filters, onFilterChange, creatorCounts }) => {
   const [expandedSections, setExpandedSections] = useState({
-    category: true,
-    city: true,
-    state: true,
-    followers: true,
-    engagement: true,
-    tags: true,
-    status: true
+    category: false,
+    city: false,
+    state: false,
+    followers: false,
+    engagement: false,
+    tags: false,
+    status: false
   });
 
   // Global state for managing all filter accordions
-  const [isAllFiltersExpanded, setIsAllFiltersExpanded] = useState(true);
+  const [isAllFiltersExpanded, setIsAllFiltersExpanded] = useState(false);
 
   // Provided categories from sheet_source column
   const allCategories = [
